@@ -1,50 +1,106 @@
-# Welcome to your Expo app 👋
+### 📄 Nama dan Deskripsi Singkat Aplikasi
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**Nama Aplikasi:** StuPlan
 
-## Get started
+**Deskripsi Singkat:** Aplikasi ini membantu mahasiswa dalam mencatat dan mengelola kegiatan akademik serta keuangan pribadi agar lebih produktif dan teratur.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+### 👥 Anggota Kelompok (Nama - NIM)
 
-2. Start the app
+- Ari Gamaliel Manohan Silitonga (231402030)
+- Ikhsan Shah Pohan (231402039)
+- Raswan Haqqi Al Amwi (231402018)
+- Fauzan Luthfi Khair Siregar (231402088)
+- Zahra Naziha Parinduri (231402127)
+- Khairunissa Pohan (231402100)
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## 🧩 Rencana Fitur yang Akan Ada di Aplikasi
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### Manajemen Tugas Mahasiswa
+Pengguna dapat menambah, mengedit, dan menghapus daftar tugas kuliah serta mendapatkan pengingat sebelum deadline.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Pencatatan Keuangan
+Pengguna dapat mencatat pemasukan dan pengeluaran bulanan, sehingga membantu mengontrol keuangan pribadi.
 
-## Get a fresh project
+### Statistik dan Laporan
+Menampilkan grafik dan laporan bulanan untuk analisis pengeluaran dan produktivitas mahasiswa.
 
-When you're ready, run:
+---
+
+## 🧱 Deskripsi Project
+
+- **Jenis:** Cross Platform
+- **Framework:** React Native (Expo)
+- **Backend:** Supabase
+- **Styling:** NativeWind (Tailwind CSS for React Native)
+- **Bahasa Pemrograman:** TypeScript
+- **SDK Version:** Expo SDK 54
+- **Node.js Version:** 20.x
+
+---
+
+## ⚙️ Cara Membuat Proyek dan Mengambil Kunci Supabase
+
+### 1️⃣ Membuat Proyek React Native (Expo)
 
 ```bash
-npm run reset-project
+npx create-expo-app@latest nama-proyek
+cd nama-proyek
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2️⃣ Install Dependensi
 
-## Learn more
+```bash
+npm install nativewind @supabase/supabase-js react-native-svg
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+### 3️⃣ Membuat Proyek di Supabase
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+1. Buka https://supabase.com
+2. Klik **New Project**
+3. Isi nama proyek dan pilih region yang diinginkan
+4. Setelah proyek dibuat, buka tab **Project Settings → API**
+5. Salin:
+   - **Project URL** → digunakan untuk `EXPO_PUBLIC_SUPABASE_URL`
+   - **Anon Public Key** → digunakan untuk `EXPO_PUBLIC_SUPABASE_ANON_KEY`
 
-## Join the community
+### 4️⃣ Tambahkan ke File `.env`
 
-Join our community of developers creating universal apps.
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+
+## 🚀 Cara Menjalankan Aplikasi
+
+### 1️⃣ Jalankan Aplikasi
+
+```bash
+npx expo start
+```
+
+### 2️⃣ Pilihan Menjalankan
+
+- Tekan **`a`** → Jalankan di Android Emulator
+- Tekan **`i`** → Jalankan di iOS Simulator
+- **Scan QR Code** di terminal menggunakan aplikasi **Expo Go**
+
+---
+
+## 📝 Catatan Tambahan
+
+- Pastikan Node.js versi 20.x sudah terinstall di komputer Anda
+- Untuk menggunakan Android Emulator, pastikan Android Studio sudah terinstall
+- Untuk iOS Simulator, pastikan Xcode sudah terinstall (hanya di macOS)
+- File `.env` jangan di-push ke repository Git (tambahkan ke `.gitignore`)
+
+---
+
+## 📞 Kontak
+
+Untuk pertanyaan lebih lanjut terkait key supabase (jika mau akses langsung), silakan hubungi salah satu anggota tim.
