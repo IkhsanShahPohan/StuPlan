@@ -44,18 +44,19 @@ Menampilkan grafik dan laporan bulanan untuk analisis pengeluaran dan produktivi
 
 ## ⚙️ Cara Membuat Proyek dan Mengambil Kunci Supabase
 
-### 1️⃣ Membuat Proyek React Native (Expo)
+### 1️⃣ Clone Repository
 
 ```bash
-npx create-expo-app@latest nama-proyek
-cd nama-proyek
+git clone https://github.com/IkhsanShahPohan/StuPlan.git
+cd [NAMA_FOLDER_PROJECT]
 ```
 
 ### 2️⃣ Install Dependensi
 
 ```bash
-npm install nativewind @supabase/supabase-js react-native-svg
+npm install
 ```
+
 
 ### 3️⃣ Membuat Proyek di Supabase
 
