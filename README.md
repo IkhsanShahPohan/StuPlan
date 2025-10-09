@@ -44,11 +44,15 @@ Menampilkan grafik dan laporan bulanan untuk analisis pengeluaran dan produktivi
 
 ## ⚙️ Cara Membuat Proyek dan Mengambil Kunci Supabase
 
-### 1️⃣ Clone Repository
+
+### 1️⃣ Clone dan masuk ke Folder Repository
 
 ```bash
 git clone https://github.com/IkhsanShahPohan/StuPlan.git
-cd [NAMA_FOLDER_PROJECT]
+```
+
+```bash
+cd StuPlan
 ```
 
 ### 2️⃣ Install Dependensi
@@ -56,6 +60,7 @@ cd [NAMA_FOLDER_PROJECT]
 ```bash
 npm install
 ```
+
 
 
 ### 3️⃣ Membuat Proyek di Supabase
