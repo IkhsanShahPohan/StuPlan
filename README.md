@@ -22,9 +22,6 @@
 ### Manajemen Tugas Mahasiswa
 Pengguna dapat menambah, mengedit, dan menghapus daftar tugas kuliah serta mendapatkan pengingat sebelum deadline.
 
-### Pencatatan Keuangan
-Pengguna dapat mencatat pemasukan dan pengeluaran bulanan, sehingga membantu mengontrol keuangan pribadi.
-
 ### Statistik dan Laporan
 Menampilkan grafik dan laporan bulanan untuk analisis pengeluaran dan produktivitas mahasiswa.
 
