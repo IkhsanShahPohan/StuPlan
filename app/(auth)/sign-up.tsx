@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../lib/supabase";
 
 const { height } = Dimensions.get("window");
@@ -24,6 +25,8 @@ export default function SignUp() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigation = useNavigation();
   
   async function signUpWithEmail() {
@@ -120,16 +123,27 @@ export default function SignUp() {
               <Text className="text-sm font-semibold text-gray-700 mb-2 ml-1">
                 Password
               </Text>
-              <View className="bg-white rounded-xl shadow-sm border border-purple-100">
+              <View className="bg-white rounded-xl shadow-sm border border-purple-100 flex-row items-center">
                 <TextInput
                   placeholder="Enter your password"
                   placeholderTextColor="#9ca3af"
                   value={password}
                   onChangeText={setPassword}
-                  secureTextEntry
+                  secureTextEntry={!showPassword}
                   autoCapitalize="none"
-                  className="px-4 py-4 text-gray-900 text-base"
+                  className="flex-1 px-4 py-4 text-gray-900 text-base"
                 />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  className="pr-4"
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-outline" : "eye-off-outline"}
+                    size={24}
+                    color="#6b7280"
+                  />
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -138,16 +152,27 @@ export default function SignUp() {
               <Text className="text-sm font-semibold text-gray-700 mb-2 ml-1">
                 Confirm Password
               </Text>
-              <View className="bg-white rounded-xl shadow-sm border border-purple-100">
+              <View className="bg-white rounded-xl shadow-sm border border-purple-100 flex-row items-center">
                 <TextInput
                   placeholder="Re-enter your password"
                   placeholderTextColor="#9ca3af"
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
-                  secureTextEntry
+                  secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
-                  className="px-4 py-4 text-gray-900 text-base"
+                  className="flex-1 px-4 py-4 text-gray-900 text-base"
                 />
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="pr-4"
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={showConfirmPassword ? "eye-outline" : "eye-off-outline"}
+                    size={24}
+                    color="#6b7280"
+                  />
+                </TouchableOpacity>
               </View>
             </View>
 
