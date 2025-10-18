@@ -6,6 +6,8 @@ import save from "../assets/icons/save.png";
 import star from "../assets/icons/star.png";
 import play from "../assets/icons/play.png";
 import arrow from "../assets/icons/arrow.png";
+import learn from "../assets/icons/learn.png";
+import task from "../assets/icons/task.png";
 
 export const icons = {
   home,
@@ -16,4 +18,6 @@ export const icons = {
   star,
   play,
   arrow,
+  learn,
+  task,
 };
