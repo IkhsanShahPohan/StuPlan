@@ -6,6 +6,8 @@ import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { TabIcon } from "@/components/TabIcon";
 
+
+
 // const TabIcon = ({ focused, icon, title }: any) => {
 //   if (focused) {
 //     return (
@@ -110,7 +112,7 @@ const _Layout = () => {
           title: "Learn",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon title="Learn" icon={icons.home} focused={focused} />
+            <TabIcon title="Learn" icon={icons.search} focused={focused} />
           ),
         }}
       />
@@ -120,7 +122,7 @@ const _Layout = () => {
           title: "Tasks",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon title="Tasks" icon={icons.home} focused={focused} />
+            <TabIcon title="Tasks" icon={icons.star} focused={focused} />
           ),
         }}
       />
