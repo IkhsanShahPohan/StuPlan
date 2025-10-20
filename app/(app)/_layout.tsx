@@ -112,7 +112,7 @@ const _Layout = () => {
           title: "Learn",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon title="Learn" icon={icons.search} focused={focused} />
+            <TabIcon title="Learn" icon={icons.learn} focused={focused} />
           ),
         }}
       />
@@ -122,7 +122,7 @@ const _Layout = () => {
           title: "Tasks",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon title="Tasks" icon={icons.star} focused={focused} />
+            <TabIcon title="Tasks" icon={icons.task} focused={focused} />
           ),
         }}
       />

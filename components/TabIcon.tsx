@@ -1,22 +1,72 @@
-import { Image, Text, View } from "react-native";
+import { Image, Text, View, Animated } from "react-native";
+import { useEffect, useRef } from "react";
 
 export const TabIcon = ({ focused, icon, title }: any) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(0.6)).current;
+
+  useEffect(() => {
+    if (focused) {
+      // Animasi untuk tab yang aktif
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 50,
+          friction: 7,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Animasi untuk tab yang inactive
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 0.9,
+          useNativeDriver: true,
+          tension: 50,
+          friction: 7,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 0.6,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [focused]);
+
   if (focused) {
     return (
-      <View className="flex flex-row flex-1 min-w-[110px] w-full min-h-16 mt-4 justify-center items-center rounded-full overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 shadow-lg">
-        <View className="flex flex-row justify-center items-center bg-white/95 rounded-full px-4 py-3 shadow-md">
-          <Image source={icon} tintColor="#6366F1" className="size-5" />
-          <Text className="text-indigo-600 text-base font-semibold ml-2">
+      <Animated.View
+        style={{
+          transform: [{ scale: scaleAnim }],
+          opacity: opacityAnim,
+        }}
+        className="flex flex-row flex-1 min-w-[110px] w-full min-h-16 mt-4 justify-center items-center rounded-full overflow-hidden"
+      >
+        <View className="flex flex-row justify-center items-center bg-purple-700 rounded-full px-5 py-3 shadow-lg">
+          <Image source={icon} tintColor="#FFFFFF" className="size-5" />
+          <Text className="text-white text-base font-bold ml-2">
             {title}
           </Text>
         </View>
-      </View>
+      </Animated.View>
     );
   } else {
     return (
-      <View className="flex justify-center items-center w-[110px] h-14 mt-4 rounded-full">
+      <Animated.View
+        style={{
+          transform: [{ scale: scaleAnim }],
+          opacity: opacityAnim,
+        }}
+        className="flex justify-center items-center w-[110px] h-14 mt-4 rounded-full"
+      >
         <Image source={icon} tintColor="#94A3B8" className="size-5" />
-      </View>
+      </Animated.View>
     );
   }
 };
