@@ -1,4 +1,4 @@
-import { Image, Text, View, Animated } from "react-native";
+import { Image, View, Animated } from "react-native";
 import { useEffect, useRef } from "react";
 
 export const TabIcon = ({ focused, icon, title }: any) => {
@@ -50,9 +50,6 @@ export const TabIcon = ({ focused, icon, title }: any) => {
       >
         <View className="flex flex-row justify-center items-center bg-purple-700 rounded-full px-5 py-3 shadow-lg">
           <Image source={icon} tintColor="#FFFFFF" className="size-5" />
-          <Text className="text-white text-base font-bold ml-2">
-            {title}
-          </Text>
         </View>
       </Animated.View>
     );

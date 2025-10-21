@@ -1,10 +1,10 @@
-import { icons } from "@/constants/icons";
-import { Tabs, Redirect } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { Image, ImageBackground, Text, View, ActivityIndicator } from "react-native";
-import { Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
 import { TabIcon } from "@/components/TabIcon";
+import { icons } from "@/constants/icons";
+import { supabase } from "@/lib/supabase";
+import { Session } from "@supabase/supabase-js";
+import { Redirect, Tabs } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, View } from "react-native";
 
 
 
@@ -113,6 +113,16 @@ const _Layout = () => {
           headerShown: false,
           tabBarIcon: ({ focused }) => (
             <TabIcon title="Learn" icon={icons.learn} focused={focused} />
+          ),
+        }}
+      />
+            <Tabs.Screen
+        name="calender"
+        options={{
+          title: "calender",
+          headerShown: false,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon title="calender" icon={icons.calendar} focused={focused} />
           ),
         }}
       />

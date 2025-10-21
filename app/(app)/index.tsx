@@ -64,22 +64,22 @@ export default function Index() {
       <Text className="text-2xl font-bold text-gray-900 mb-6">Home Page</Text>
 
       {/* Tombol Sign Out */}
-      <TouchableOpacity
+      {/* <TouchableOpacity
         className="border border-indigo-600 py-4 px-10 rounded-xl mt-2 active:opacity-80"
         onPress={() => supabase.auth.signOut()}
       >
         <Text className="text-indigo-600 font-semibold text-base">
           Sign Out
         </Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       {/* Tombol ke Index */}
-      <TouchableOpacity
+      {/* <TouchableOpacity
         className="border border-indigo-600 py-4 px-10 rounded-xl mt-4 active:opacity-80"
         onPress={() => router.replace("/")}
       >
         <Text className="text-indigo-600 font-semibold text-base">Index</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 }
