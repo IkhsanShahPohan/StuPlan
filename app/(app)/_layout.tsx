@@ -1,10 +1,14 @@
+import { TabIcon } from "@/components/TabIcon";
 import { icons } from "@/constants/icons";
 import { Tabs, Redirect } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Image, Text, View, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { TabIcon } from "@/components/TabIcon";
+import { Session } from "@supabase/supabase-js";
+import { Redirect, Tabs } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, View } from "react-native";
 
 const _Layout = () => {
   const [session, setSession] = useState<Session | null>(null);
