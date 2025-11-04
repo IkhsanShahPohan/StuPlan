@@ -47,6 +47,9 @@ export default function SignUp() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: "exp://192.168.1.15:8081"
+        }
       });
 
       if (error) throw error;

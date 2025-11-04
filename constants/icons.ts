@@ -8,7 +8,11 @@ import play from "../assets/icons/play.png";
 import arrow from "../assets/icons/arrow.png";
 import learn from "../assets/icons/learn.png";
 import task from "../assets/icons/task.png";
-import calendar from "../assets/icons/imgcld.png";
+import calendar from "../assets/icons/calendar.png";
+import home2 from "../assets/icons/layout/home2.png";
+import task2 from "../assets/icons/layout/tasks2.png";
+import person2 from "../assets/icons/layout/profile2.png";
+import timer from "../assets/icons/layout/time.png";
 
 export const icons = {
   home,
@@ -21,5 +25,9 @@ export const icons = {
   arrow,
   learn,
   task,
-  calendar
+  task2,
+  calendar,
+  home2,
+  person2,
+  timer
 };

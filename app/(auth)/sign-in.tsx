@@ -36,7 +36,7 @@ export default function Login() {
     if (error) {
       Alert.alert(error.message);
       return; // jangan navigasi
-    }
+    } 
 
     // baru navigasi kalau login sukses
     router.replace("/");

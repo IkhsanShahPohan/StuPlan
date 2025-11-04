@@ -1,14 +1,10 @@
-import { TabIcon } from "@/components/TabIcon";
+import { TabIcon } from "@/molecules/TabIcon";
 import { icons } from "@/constants/icons";
 import { Tabs, Redirect } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Image, Text, View, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { Session } from "@supabase/supabase-js";
-import { Redirect, Tabs } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
 
 const _Layout = () => {
   const [session, setSession] = useState<Session | null>(null);
@@ -65,9 +61,9 @@ const _Layout = () => {
             position: "absolute",
             overflow: "hidden",
             marginHorizontal: 15,
-            height: 52,
+            height: 56,
             shadowColor: "#6366F1",
-            shadowOffset: { width: 0, height: 4 },
+            shadowOffset: { width: 2, height: 4 },
             shadowOpacity: 0.15,
             shadowRadius: 12,
             elevation: 8,
@@ -80,7 +76,15 @@ const _Layout = () => {
           options={{
             title: "Home",
             headerShown: false,
-            tabBarIcon: ({ focused }) => <TabIcon title="Home" icon={icons.home} focused={focused} />,
+            tabBarIcon: ({ focused }) => <TabIcon title="Home" icon={icons.home2} focused={focused} />,
+          }}
+        />
+           <Tabs.Screen
+          name="tasks"
+          options={{
+            title: "Tasks",
+            headerShown: false,
+            tabBarIcon: ({ focused }) => <TabIcon title="Tasks" icon={icons.task2} focused={focused} />,
           }}
         />
         <Tabs.Screen
@@ -91,12 +95,13 @@ const _Layout = () => {
             tabBarIcon: ({ focused }) => <TabIcon title="Learn" icon={icons.learn} focused={focused} />,
           }}
         />
+     
         <Tabs.Screen
-          name="tasks"
+          name="calendar"
           options={{
-            title: "Tasks",
+            title: "Calendar",
             headerShown: false,
-            tabBarIcon: ({ focused }) => <TabIcon title="Tasks" icon={icons.task} focused={focused} />,
+            tabBarIcon: ({ focused }) => <TabIcon title="Calendar" icon={icons.calendar} focused={focused} />,
           }}
         />
         <Tabs.Screen
@@ -104,7 +109,7 @@ const _Layout = () => {
           options={{
             title: "Profile",
             headerShown: false,
-            tabBarIcon: ({ focused }) => <TabIcon title="Profile" icon={icons.person} focused={focused} />,
+            tabBarIcon: ({ focused }) => <TabIcon title="Profile" icon={icons.person2} focused={focused} />,
           }}
         />
       </Tabs>
