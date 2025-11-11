@@ -1,4 +1,4 @@
-import { TabIcon } from "@/molecules/TabIcon";
+import { TabIcon } from "@/components/TabIcon";
 import { icons } from "@/constants/icons";
 import { Tabs, Redirect } from "expo-router";
 import { useEffect, useState } from "react";
