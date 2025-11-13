@@ -69,7 +69,7 @@ export default function Index() {
         sessions={pomodoroHistory}
         onSeeMore={handleSeeMorePomodoro}
       />
-      <Overview />
+      {/* <Overview /> */}
     </View>
   );
 
