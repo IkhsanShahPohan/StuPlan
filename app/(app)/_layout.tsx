@@ -38,12 +38,12 @@ const _Layout = () => {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      // kalau pakai header custom atau ingin “angkat” konten sedikit di iOS, bisa atur offset
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-    >
+    // <KeyboardAvoidingView
+    //   style={{ flex: 1 }}
+    //   behavior={Platform.OS === "ios" ? "padding" : "height"}
+    //   // kalau pakai header custom atau ingin “angkat” konten sedikit di iOS, bisa atur offset
+    //   keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+    // >
       <Tabs
         screenOptions={{
           tabBarShowLabel: false,
@@ -113,7 +113,7 @@ const _Layout = () => {
           }}
         />
       </Tabs>
-    </KeyboardAvoidingView>
+    // </KeyboardAvoidingView>
   );
 };
 

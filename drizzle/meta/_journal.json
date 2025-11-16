@@ -29,6 +29,27 @@
       "when": 1763015919094,
       "tag": "0003_lonely_lord_tyger",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1763078512773,
+      "tag": "0004_numerous_orphan",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1763261061642,
+      "tag": "0005_hesitant_kronos",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1763279451426,
+      "tag": "0006_supreme_guardsmen",
+      "breakpoints": true
     }
   ]
 }
