@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { CommonActions } from "@react-navigation/native";
 import { useNavigation, useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -14,7 +15,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../lib/supabase";
 
 const { height } = Dimensions.get("window");
@@ -28,7 +28,7 @@ export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigation = useNavigation();
-  
+
   async function signUpWithEmail() {
     // Validasi sederhana
     if (!email || !password || !confirmPassword) {
@@ -48,8 +48,8 @@ export default function SignUp() {
         email,
         password,
         options: {
-          emailRedirectTo: "exp://192.168.1.15:8081"
-        }
+          emailRedirectTo: `exp://${process.env.PORT}`,
+        },
       });
 
       if (error) throw error;
@@ -171,7 +171,9 @@ export default function SignUp() {
                   activeOpacity={0.7}
                 >
                   <Ionicons
-                    name={showConfirmPassword ? "eye-outline" : "eye-off-outline"}
+                    name={
+                      showConfirmPassword ? "eye-outline" : "eye-off-outline"
+                    }
                     size={24}
                     color="#6b7280"
                   />

@@ -1,30 +1,9 @@
+import { useEffect, useState } from "react";
+
 import { subtasks, tasks } from "@/db/schema";
 import { and, desc, eq, gte, like, lte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import { useSQLiteContext } from "expo-sqlite";
-import { useEffect, useState } from "react";
-
-interface Task {
-  id: number;
-  title: string;
-  description: string | null;
-  notes: string | null;
-  deadline: string;
-  status: "pending" | "in_progress" | "completed";
-  reminderEnabled: number;
-  reminderDaysBefore: number | null;
-  notificationId: string | null;
-  createdAt: string | null;
-  updatedAt: string | null;
-}
-
-interface Subtask {
-  id: number;
-  taskId: number;
-  title: string;
-  completed: number;
-  createdAt: string | null;
-}
 
 interface Task {
   id: number;
