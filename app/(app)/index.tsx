@@ -65,11 +65,11 @@ export default function Index() {
   const renderAllContent = () => (
     <View className="flex gap-4">
       <TaskContent tasks={upcomingTasks} />
-      <PomodoroSection
+      {/* <PomodoroSection
         sessions={pomodoroHistory}
         onSeeMore={handleSeeMorePomodoro}
-      />
-      <Overview />
+      /> */}
+      {/* <Overview /> */}
     </View>
   );
 
@@ -83,90 +83,91 @@ export default function Index() {
   const renderTaskContent = () => <TaskContent tasks={upcomingTasks} />;
 
   return (
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerStyle={{ paddingBottom: 80 }}
-    >
-      {/* Header Section */}
-      <View className="px-5 pt-12 pb-6 bg-white">
-        <View className="flex-row justify-between items-center">
-          <View>
-            <Text className="text-2xl font-bold text-gray-800">
-              Hello, {userName}
-            </Text>
-          </View>
-          <View className="w-12 h-12 rounded-full bg-gray-300 overflow-hidden">
-            <Image
-              source={{
-                uri:
-                  "https://ui-avatars.com/api/?name=" +
-                  userName +
-                  "&background=6366f1&color=fff",
-              }}
-              className="w-full h-full"
-            />
-          </View>
-        </View>
-      </View>
-
-      {/* Progress Card */}
-      <View className="px-5 mb-2 bg-white pb-6">
-        <View
-          className="rounded-3xl p-8 flex-row justify-between items-center"
-          style={{ backgroundColor: "#BADFDB" }}
-        >
-          <View className="flex-1 pr-4 gap-2">
-            <Text className="text-xl font-bold text-[#3b4544] mb-3 max-w-40">
-              Your today task's is almost done
-            </Text>
-            <TouchableOpacity className="bg-white rounded-full px-5 py-2.5 self-start">
-              <Text className="text-sm font-semibold text-gray-800">
-                View tasks
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <View className="items-center justify-center">
-            <View className="w-20 h-20 rounded-full bg-white items-center justify-center">
+    <View className="flex-1 bg-[#F2F2F7]">
+      <ScrollView
+        className="flex-1 bg-gray-50"
+        contentContainerStyle={{ paddingBottom: 80 }}
+      >
+        {/* Header Section */}
+        <View className="px-5 pt-12 pb-6 bg-white">
+          <View className="flex-row justify-between items-center">
+            <View>
               <Text className="text-2xl font-bold text-gray-800">
-                {taskProgress}%
+                Hello, {userName}
               </Text>
+            </View>
+            <View className="w-12 h-12 rounded-full bg-gray-300 overflow-hidden">
+              <Image
+                source={{
+                  uri:
+                    "https://ui-avatars.com/api/?name=" +
+                    userName +
+                    "&background=6366f1&color=fff",
+                }}
+                className="w-full h-full"
+              />
             </View>
           </View>
         </View>
-      </View>
 
-      {/* Filter Section */}
-      <View className="px-5 mb-4">
-        <View className="flex-row gap-3">
-          {filters.map((filter) => (
-            <TouchableOpacity
-              key={filter}
-              onPress={() => setActiveFilter(filter)}
-              className={`px-6 py-2.5 rounded-full ${
-                activeFilter === filter
-                  ? "bg-indigo-500"
-                  : "bg-white border border-gray-200"
-              }`}
-            >
-              <Text
-                className={`text-sm font-semibold ${
-                  activeFilter === filter ? "text-white" : "text-gray-600"
+        {/* Progress Card */}
+        <View className="px-5 mb-2 bg-white pb-6">
+          <View
+            className="rounded-3xl p-8 flex-row justify-between items-center"
+            style={{ backgroundColor: "#BADFDB" }}
+          >
+            <View className="flex-1 pr-4 gap-2">
+              <Text className="text-xl font-bold text-[#3b4544] mb-3 max-w-40">
+                Your today task's is almost done
+              </Text>
+              <TouchableOpacity className="bg-white rounded-full px-5 py-2.5 self-start">
+                <Text className="text-sm font-semibold text-gray-800">
+                  View tasks
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View className="items-center justify-center">
+              <View className="w-20 h-20 rounded-full bg-white items-center justify-center">
+                <Text className="text-2xl font-bold text-gray-800">
+                  {taskProgress}%
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Filter Section */}
+        <View className="px-5 mb-4">
+          <View className="flex-row gap-3">
+            {filters.map((filter) => (
+              <TouchableOpacity
+                key={filter}
+                onPress={() => setActiveFilter(filter)}
+                className={`px-6 py-2.5 rounded-full ${
+                  activeFilter === filter
+                    ? "bg-indigo-500"
+                    : "bg-white border border-gray-200"
                 }`}
               >
-                {filter}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  className={`text-sm font-semibold ${
+                    activeFilter === filter ? "text-white" : "text-gray-600"
+                  }`}
+                >
+                  {filter}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-      </View>
 
-      {/* Content Section */}
-      <View className="px-5 py-6">
-        {activeFilter === "All" && renderAllContent()}
-        {activeFilter === "Task" && renderTaskContent()}
-        {activeFilter === "Pomodoro" && renderPomodoroContent()}
-      </View>
-      
-    </ScrollView>
+        {/* Content Section */}
+        <View className="px-5 py-6">
+          {activeFilter === "All" && renderAllContent()}
+          {activeFilter === "Task" && renderTaskContent()}
+          {activeFilter === "Pomodoro" && renderPomodoroContent()}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
