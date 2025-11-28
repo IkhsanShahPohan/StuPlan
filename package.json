@@ -28,6 +28,7 @@
     "expo-font": "~14.0.8",
     "expo-haptics": "~15.0.7",
     "expo-image": "~3.0.8",
+    "expo-linear-gradient": "^15.0.7",
     "expo-linking": "~8.0.8",
     "expo-notifications": "~0.32.12",
     "expo-router": "~6.0.10",
@@ -54,6 +55,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "better-sqlite3": "^12.4.6",
     "drizzle-kit": "^0.31.6",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",

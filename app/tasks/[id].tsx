@@ -1245,6 +1245,487 @@
 
 // export default Whatever;
 
+// import { tasks } from "@/db/schema";
+// import { Ionicons } from "@expo/vector-icons";
+// import { eq } from "drizzle-orm";
+// import { drizzle } from "drizzle-orm/expo-sqlite";
+// import { router, useLocalSearchParams } from "expo-router";
+// import { useSQLiteContext } from "expo-sqlite";
+// import React, { useEffect, useState } from "react";
+// import {
+//   Alert,
+//   Modal,
+//   ScrollView,
+//   Text,
+//   TextInput,
+//   TouchableOpacity,
+//   View,
+// } from "react-native";
+// import { SafeAreaView } from "react-native-safe-area-context";
+// import { useSubtasks } from "../../hooks/useTasks";
+// import { detailStyles } from "../../styles/detailStyles";
+// import { modalStyles } from "../../styles/modalStyles";
+// import EditTaskModal from "@/components/tasks/EditTaskModal";
+
+// export default function TaskDetailScreen() {
+//   const { id } = useLocalSearchParams();
+//   const taskId = parseInt(id as string);
+
+//   const [task, setTask] = useState<any>(null);
+//   const [loading, setLoading] = useState(true);
+//   const [editModalVisible, setEditModalVisible] = useState(false);
+//   const [newSubtask, setNewSubtask] = useState("");
+//   const [showNotesModal, setShowNotesModal] = useState(false);
+//   const [notesWordCount, setNotesWordCount] = useState(0);
+
+//   const x = useSQLiteContext();
+//   const db = drizzle(x);
+
+//   const {
+//     subtasks,
+//     createSubtask,
+//     toggleSubtask,
+//     deleteSubtask,
+//     refreshSubtasks,
+//   } = useSubtasks(taskId);
+
+//   // Load task
+//   const loadTask = async () => {
+//     try {
+//       const result = await db
+//         .select()
+//         .from(tasks)
+//         .where(eq(tasks.id, taskId))
+//         .limit(1);
+
+//       if (result.length > 0) {
+//         setTask(result[0]);
+//       } else {
+//         Alert.alert("Error", "Tugas tidak ditemukan");
+//         router.back();
+//       }
+//     } catch (error) {
+//       console.error("Error loading task:", error);
+//       Alert.alert("Error", "Gagal memuat tugas");
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   useEffect(() => {
+//     loadTask();
+//   }, [taskId]);
+
+//   useEffect(() => {
+//     if (task?.notes) {
+//       const words = task.notes
+//         .trim()
+//         .split(/\s+/)
+//         .filter((w: string) => w.length > 0);
+//       setNotesWordCount(words.length);
+//     }
+//   }, [task?.notes]);
+
+//   // Auto-update status based on subtasks
+//   useEffect(() => {
+//     const updateStatus = async () => {
+//       if (!task || subtasks.length === 0) return;
+
+//       const completedCount = subtasks.filter((s: any) => s.completed).length;
+//       let newStatus = "pending";
+
+//       if (completedCount === subtasks.length) {
+//         newStatus = "completed";
+//       } else if (completedCount > 0) {
+//         newStatus = "in_progress";
+//       }
+
+//       if (newStatus !== task.status) {
+//         try {
+//           await db
+//             .update(tasks)
+//             .set({ status: newStatus, updatedAt: new Date().toISOString() })
+//             .where(eq(tasks.id, taskId));
+
+//           setTask({ ...task, status: newStatus });
+//         } catch (error) {
+//           console.error("Error updating status:", error);
+//         }
+//       }
+//     };
+
+//     updateStatus();
+//   }, [subtasks]);
+
+//   const handleAddSubtask = async () => {
+//     if (!newSubtask.trim()) {
+//       Alert.alert("Error", "Subtask tidak boleh kosong");
+//       return;
+//     }
+//     try {
+//       await createSubtask(newSubtask.trim());
+//       setNewSubtask("");
+//       await refreshSubtasks();
+//     } catch {
+//       Alert.alert("Error", "Gagal menambah subtask");
+//     }
+//   };
+
+//   const handleToggleSubtask = async (id: number, completed: boolean) => {
+//     try {
+//       await toggleSubtask(id, completed);
+//       await refreshSubtasks();
+//     } catch {
+//       Alert.alert("Error", "Gagal mengubah status");
+//     }
+//   };
+
+//   const handleDeleteSubtask = async (id: number) => {
+//     try {
+//       await deleteSubtask(id);
+//       await refreshSubtasks();
+//     } catch {
+//       Alert.alert("Error", "Gagal menghapus subtask");
+//     }
+//   };
+
+//   const handleUpdateTask = async (taskData: any) => {
+//     try {
+//       await db
+//         .update(tasks)
+//         .set({ ...taskData, updatedAt: new Date().toISOString() })
+//         .where(eq(tasks.id, taskId));
+
+//       await loadTask();
+//     } catch (error) {
+//       throw error;
+//     }
+//   };
+
+//   const handleUpdateNotes = async (newNotes: string) => {
+//     try {
+//       await db
+//         .update(tasks)
+//         .set({ notes: newNotes || null, updatedAt: new Date().toISOString() })
+//         .where(eq(tasks.id, taskId));
+
+//       setTask({ ...task, notes: newNotes });
+//     } catch (error) {
+//       console.error("Error updating notes:", error);
+//     }
+//   };
+
+//   if (loading || !task) {
+//     return (
+//       <SafeAreaView style={detailStyles.container}>
+//         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+//           <Text>Memuat...</Text>
+//         </View>
+//       </SafeAreaView>
+//     );
+//   }
+
+//   const completedCount = subtasks.filter((s: any) => s.completed).length;
+//   const progress =
+//     subtasks.length > 0 ? (completedCount / subtasks.length) * 100 : 0;
+
+//   const statusConfig = {
+//     pending: { label: "Pending", color: "#FF9500", icon: "time-outline" },
+//     in_progress: {
+//       label: "Berjalan",
+//       color: "#007AFF",
+//       icon: "play-circle-outline",
+//     },
+//     completed: {
+//       label: "Selesai",
+//       color: "#34C759",
+//       icon: "checkmark-circle-outline",
+//     },
+//   };
+
+//   const currentStatus =
+//     statusConfig[task.status as keyof typeof statusConfig];
+
+//   const deadline = new Date(task.deadline);
+//   const isOverdue = deadline < new Date() && task.status !== "completed";
+
+//   return (
+//     <SafeAreaView style={detailStyles.container}>
+//       {/* Header */}
+//       <View style={detailStyles.header}>
+//         <View style={detailStyles.headerLeft}>
+//           <TouchableOpacity onPress={() => router.back()}>
+//             <Ionicons name="chevron-back" size={28} color="#007AFF" />
+//           </TouchableOpacity>
+//           <Text style={detailStyles.headerTitle}>Detail Tugas</Text>
+//         </View>
+//         <TouchableOpacity
+//           style={detailStyles.editBtn}
+//           onPress={() => setEditModalVisible(true)}
+//         >
+//           <Text style={detailStyles.editBtnText}>Edit</Text>
+//         </TouchableOpacity>
+//       </View>
+
+//       <ScrollView style={detailStyles.body} showsVerticalScrollIndicator={false}>
+//         {/* Status Badge */}
+//         <View
+//           style={[
+//             detailStyles.statusBadge,
+//             { backgroundColor: currentStatus.color + "20" },
+//           ]}
+//         >
+//           <Ionicons
+//             name={currentStatus.icon as any}
+//             size={20}
+//             color={currentStatus.color}
+//           />
+//           <Text
+//             style={[
+//               detailStyles.statusBadgeText,
+//               { color: currentStatus.color },
+//             ]}
+//           >
+//             {currentStatus.label}
+//           </Text>
+//         </View>
+
+//         {/* Title */}
+//         <Text style={detailStyles.title}>{task.title}</Text>
+
+//         {/* Description */}
+//         {task.description && (
+//           <View style={detailStyles.section}>
+//             <Text style={detailStyles.sectionTitle}>DESKRIPSI</Text>
+//             <Text style={detailStyles.sectionText}>{task.description}</Text>
+//           </View>
+//         )}
+
+//         {/* Notes */}
+//         {task.notes && (
+//           <View style={detailStyles.section}>
+//             <View style={detailStyles.sectionHeader}>
+//               <Text style={detailStyles.sectionTitle}>CATATAN</Text>
+//               <TouchableOpacity onPress={() => setShowNotesModal(true)}>
+//                 <Ionicons name="pencil" size={18} color="#007AFF" />
+//               </TouchableOpacity>
+//             </View>
+//             <TouchableOpacity
+//               style={detailStyles.notesCard}
+//               onPress={() => setShowNotesModal(true)}
+//               activeOpacity={0.7}
+//             >
+//               <Text style={detailStyles.notesText}>{task.notes}</Text>
+//               <View style={detailStyles.notesFooter}>
+//                 <Text style={detailStyles.notesMeta}>{notesWordCount} kata</Text>
+//                 <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
+//               </View>
+//             </TouchableOpacity>
+//           </View>
+//         )}
+
+//         {/* Notes Editor Modal */}
+//         <Modal
+//           visible={showNotesModal}
+//           animationType="slide"
+//           presentationStyle="fullScreen"
+//           onRequestClose={() => setShowNotesModal(false)}
+//         >
+//           <SafeAreaView style={modalStyles.notesEditorContainer}>
+//             <View style={modalStyles.notesEditorHeader}>
+//               <TouchableOpacity
+//                 style={modalStyles.notesEditorBackBtn}
+//                 onPress={() => setShowNotesModal(false)}
+//               >
+//                 <Ionicons name="chevron-back" size={28} color="#007AFF" />
+//                 <Text style={modalStyles.notesEditorBackText}>Kembali</Text>
+//               </TouchableOpacity>
+//               <View style={modalStyles.notesEditorInfo}>
+//                 <Text style={modalStyles.notesEditorWordCount}>
+//                   {notesWordCount} kata
+//                 </Text>
+//               </View>
+//             </View>
+
+//             <ScrollView
+//               style={modalStyles.notesEditorBody}
+//               keyboardShouldPersistTaps="handled"
+//             >
+//               <TextInput
+//                 style={modalStyles.notesEditorInput}
+//                 value={task.notes || ""}
+//                 onChangeText={handleUpdateNotes}
+//                 placeholder="Mulai menulis catatan Anda..."
+//                 placeholderTextColor="#C7C7CC"
+//                 multiline
+//                 autoFocus
+//                 textAlignVertical="top"
+//               />
+//             </ScrollView>
+
+//             <View style={modalStyles.notesEditorToolbar}>
+//               <TouchableOpacity
+//                 style={modalStyles.notesToolbarBtn}
+//                 onPress={() => handleUpdateNotes("")}
+//               >
+//                 <Ionicons name="trash-outline" size={24} color="#FF3B30" />
+//               </TouchableOpacity>
+//               <View style={modalStyles.notesToolbarDivider} />
+//               <Text style={modalStyles.notesToolbarDate}>
+//                 {new Date().toLocaleString("id-ID", {
+//                   day: "numeric",
+//                   month: "long",
+//                   year: "numeric",
+//                   hour: "2-digit",
+//                   minute: "2-digit",
+//                 })}
+//               </Text>
+//             </View>
+//           </SafeAreaView>
+//         </Modal>
+
+//         {/* Deadline */}
+//         <View style={detailStyles.section}>
+//           <Text style={detailStyles.sectionTitle}>DEADLINE</Text>
+//           <View style={detailStyles.infoRow}>
+//             <Ionicons
+//               name="calendar-outline"
+//               size={20}
+//               color={isOverdue ? "#FF3B30" : "#007AFF"}
+//             />
+//             <Text
+//               style={[
+//                 detailStyles.infoText,
+//                 isOverdue && { color: "#FF3B30", fontWeight: "600" },
+//               ]}
+//             >
+//               {deadline.toLocaleDateString("id-ID", {
+//                 weekday: "long",
+//                 day: "numeric",
+//                 month: "long",
+//                 year: "numeric",
+//               })}
+//               {isOverdue && " (Terlambat)"}
+//             </Text>
+//           </View>
+//         </View>
+
+//         {/* Reminder Info */}
+//         {task.reminderEnabled && (
+//           <View style={detailStyles.section}>
+//             <Text style={detailStyles.sectionTitle}>PENGINGAT</Text>
+//             <View style={detailStyles.reminderInfo}>
+//               <Ionicons name="notifications" size={20} color="#007AFF" />
+//               <Text style={detailStyles.reminderInfoText}>
+//                 {task.reminderDaysBefore === 0
+//                   ? "Pada hari yang sama"
+//                   : `${task.reminderDaysBefore} hari sebelumnya`}{" "}
+//                 pukul {task.reminderTime}
+//               </Text>
+//             </View>
+//           </View>
+//         )}
+
+//         {/* Subtasks */}
+//         <View style={detailStyles.section}>
+//           <View style={detailStyles.subtaskHeader}>
+//             <Text style={detailStyles.sectionTitle}>SUBTASK</Text>
+//             {subtasks.length > 0 && (
+//               <View style={detailStyles.progressBadge}>
+//                 <Text style={detailStyles.progressText}>
+//                   {completedCount}/{subtasks.length}
+//                 </Text>
+//                 <View style={detailStyles.progressBarContainer}>
+//                   <View
+//                     style={[detailStyles.progressBar, { width: `${progress}%` }]}
+//                   />
+//                 </View>
+//               </View>
+//             )}
+//           </View>
+
+//           {/* Add Subtask */}
+//           <View style={detailStyles.addSubtaskRow}>
+//             <TextInput
+//               style={detailStyles.addSubtaskInput}
+//               value={newSubtask}
+//               onChangeText={setNewSubtask}
+//               placeholder="Tambah subtask baru..."
+//               placeholderTextColor="#C7C7CC"
+//               onSubmitEditing={handleAddSubtask}
+//               returnKeyType="done"
+//             />
+//             <TouchableOpacity
+//               style={detailStyles.addSubtaskIconBtn}
+//               onPress={handleAddSubtask}
+//             >
+//               <Ionicons name="add-circle" size={32} color="#007AFF" />
+//             </TouchableOpacity>
+//           </View>
+
+//           {/* Subtask List */}
+//           {subtasks.map((subtask: any) => (
+//             <View key={subtask.id} style={detailStyles.subtaskItem}>
+//               <TouchableOpacity
+//                 style={detailStyles.subtaskCheckbox}
+//                 onPress={() =>
+//                   handleToggleSubtask(subtask.id, subtask.completed ? 0 : 1)
+//                 }
+//                 activeOpacity={0.7}
+//               >
+//                 <Ionicons
+//                   name={
+//                     subtask.completed ? "checkmark-circle" : "ellipse-outline"
+//                   }
+//                   size={24}
+//                   color={subtask.completed ? "#34C759" : "#C7C7CC"}
+//                 />
+//               </TouchableOpacity>
+//               <Text
+//                 style={[
+//                   detailStyles.subtaskText,
+//                   subtask.completed && detailStyles.subtaskCompleted,
+//                 ]}
+//               >
+//                 {subtask.title}
+//               </Text>
+//               <TouchableOpacity
+//                 onPress={() => handleDeleteSubtask(subtask.id)}
+//                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+//               >
+//                 <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+//               </TouchableOpacity>
+//             </View>
+//           ))}
+
+//           {subtasks.length === 0 && (
+//             <View style={detailStyles.emptySubtasks}>
+//               <Ionicons name="list-outline" size={48} color="#C7C7CC" />
+//               <Text style={detailStyles.emptySubtasksText}>
+//                 Belum ada subtask
+//               </Text>
+//             </View>
+//           )}
+//         </View>
+
+//         <View style={{ height: 40 }} />
+//       </ScrollView>
+
+//       {/* Edit Modal */}
+//       <EditTaskModal
+//         visible={editModalVisible}
+//         onClose={() => {
+//           setEditModalVisible(false);
+//           loadTask();
+//         }}
+//         task={task}
+//         onUpdate={handleUpdateTask}
+//       />
+//     </SafeAreaView>
+//   );
+// }
+
+import EditTaskModal from "@/components/tasks/EditTaskModal";
 import { tasks } from "@/db/schema";
 import { Ionicons } from "@expo/vector-icons";
 import { eq } from "drizzle-orm";
@@ -1265,8 +1746,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useSubtasks } from "../../hooks/useTasks";
 import { detailStyles } from "../../styles/detailStyles";
 import { modalStyles } from "../../styles/modalStyles";
-import EditTaskModal from "@/components/tasks/EditTaskModal";
-
 
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -1290,7 +1769,6 @@ export default function TaskDetailScreen() {
     refreshSubtasks,
   } = useSubtasks(taskId);
 
-  // Load task
   const loadTask = async () => {
     try {
       const result = await db
@@ -1302,12 +1780,12 @@ export default function TaskDetailScreen() {
       if (result.length > 0) {
         setTask(result[0]);
       } else {
-        Alert.alert("Error", "Tugas tidak ditemukan");
+        Alert.alert("Error", "Item tidak ditemukan");
         router.back();
       }
     } catch (error) {
       console.error("Error loading task:", error);
-      Alert.alert("Error", "Gagal memuat tugas");
+      Alert.alert("Error", "Gagal memuat item");
     } finally {
       setLoading(false);
     }
@@ -1327,10 +1805,10 @@ export default function TaskDetailScreen() {
     }
   }, [task?.notes]);
 
-  // Auto-update status based on subtasks
+  // Auto-update status based on subtasks (only for tugas)
   useEffect(() => {
     const updateStatus = async () => {
-      if (!task || subtasks.length === 0) return;
+      if (!task || task.category !== "tugas" || subtasks.length === 0) return;
 
       const completedCount = subtasks.filter((s: any) => s.completed).length;
       let newStatus = "pending";
@@ -1419,8 +1897,10 @@ export default function TaskDetailScreen() {
   if (loading || !task) {
     return (
       <SafeAreaView style={detailStyles.container}>
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <Text>Memuat...</Text>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <Text style={{ fontSize: 16, color: "#8E8E93" }}>Memuat...</Text>
         </View>
       </SafeAreaView>
     );
@@ -1444,11 +1924,48 @@ export default function TaskDetailScreen() {
     },
   };
 
-  const currentStatus =
-    statusConfig[task.status as keyof typeof statusConfig];
+  const categoryConfig = {
+    tugas: {
+      label: "Tugas",
+      icon: "briefcase",
+      color: "#1976D2",
+      bg: "#E3F2FD",
+    },
+    jadwal: {
+      label: "Jadwal",
+      icon: "school",
+      color: "#F57C00",
+      bg: "#FFF3E0",
+    },
+    kegiatan: {
+      label: "Kegiatan",
+      icon: "calendar",
+      color: "#7B1FA2",
+      bg: "#F3E5F5",
+    },
+  };
+
+  const currentStatus = statusConfig[task.status as keyof typeof statusConfig];
+  const currentCategory =
+    categoryConfig[task.category as keyof typeof categoryConfig];
 
   const deadline = new Date(task.deadline);
   const isOverdue = deadline < new Date() && task.status !== "completed";
+
+  const getRepeatLabel = (repeat: string) => {
+    switch (repeat) {
+      case "daily":
+        return "Harian";
+      case "weekly":
+        return "Mingguan";
+      case "monthly":
+        return "Bulanan";
+      case "yearly":
+        return "Tahunan";
+      default:
+        return "";
+    }
+  };
 
   return (
     <SafeAreaView style={detailStyles.container}>
@@ -1458,37 +1975,80 @@ export default function TaskDetailScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={28} color="#007AFF" />
           </TouchableOpacity>
-          <Text style={detailStyles.headerTitle}>Detail Tugas</Text>
+          <Text style={detailStyles.headerTitle}>
+            Detail {currentCategory.label}
+          </Text>
         </View>
         <TouchableOpacity
           style={detailStyles.editBtn}
           onPress={() => setEditModalVisible(true)}
         >
+          <Ionicons
+            name="pencil"
+            size={16}
+            color="#FFFFFF"
+            style={{ marginRight: 4 }}
+          />
           <Text style={detailStyles.editBtnText}>Edit</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={detailStyles.body} showsVerticalScrollIndicator={false}>
-        {/* Status Badge */}
+      <ScrollView
+        style={detailStyles.body}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Status & Category Row */}
         <View
-          style={[
-            detailStyles.statusBadge,
-            { backgroundColor: currentStatus.color + "20" },
-          ]}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            marginTop: 16,
+          }}
         >
-          <Ionicons
-            name={currentStatus.icon as any}
-            size={20}
-            color={currentStatus.color}
-          />
-          <Text
+          {/* Status  */}
+          <View
             style={[
-              detailStyles.statusBadgeText,
-              { color: currentStatus.color },
+              detailStyles.categoryBadgeLarge,
+              { backgroundColor: currentStatus.color + "20" },
             ]}
           >
-            {currentStatus.label}
-          </Text>
+            <Ionicons
+              name={currentStatus.icon as any}
+              size={20}
+              color={currentStatus.color}
+            />
+            <Text
+              style={[
+                detailStyles.statusBadgeText,
+                { color: currentStatus.color },
+              ]}
+            >
+              aaaaa{/* {currentStatus.label} */}
+            </Text>
+          </View>
+          {/* Category  */}
+
+          <View
+            style={[
+              detailStyles.categoryBadgeLarge,
+              { backgroundColor: currentCategory.bg },
+            ]}
+          >
+            <Ionicons
+              name={currentCategory.icon as any}
+              size={20}
+              color={currentCategory.color}
+            />
+            <Text
+              style={[
+                detailStyles.categoryBadgeTextLarge,
+                { color: currentCategory.color },
+              ]}
+            >
+              bbbb{/* {currentCategory.label} */}
+            </Text>
+          </View>
         </View>
 
         {/* Title */}
@@ -1502,8 +2062,8 @@ export default function TaskDetailScreen() {
           </View>
         )}
 
-        {/* Notes */}
-        {task.notes && (
+        {/* Notes - Only for Tugas */}
+        {task.category === "tugas" && task.notes && (
           <View style={detailStyles.section}>
             <View style={detailStyles.sectionHeader}>
               <Text style={detailStyles.sectionTitle}>CATATAN</Text>
@@ -1518,7 +2078,9 @@ export default function TaskDetailScreen() {
             >
               <Text style={detailStyles.notesText}>{task.notes}</Text>
               <View style={detailStyles.notesFooter}>
-                <Text style={detailStyles.notesMeta}>{notesWordCount} kata</Text>
+                <Text style={detailStyles.notesMeta}>
+                  {notesWordCount} kata
+                </Text>
                 <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
               </View>
             </TouchableOpacity>
@@ -1585,9 +2147,11 @@ export default function TaskDetailScreen() {
           </SafeAreaView>
         </Modal>
 
-        {/* Deadline */}
+        {/* Date/Time/Repeat Section */}
         <View style={detailStyles.section}>
-          <Text style={detailStyles.sectionTitle}>DEADLINE</Text>
+          <Text style={detailStyles.sectionTitle}>
+            {task.category === "tugas" ? "DEADLINE" : "JADWAL"}
+          </Text>
           <View style={detailStyles.infoRow}>
             <Ionicons
               name="calendar-outline"
@@ -1609,6 +2173,52 @@ export default function TaskDetailScreen() {
               {isOverdue && " (Terlambat)"}
             </Text>
           </View>
+
+          {/* Time & Repeat - Only for Jadwal & Kegiatan */}
+          {task.category !== "tugas" &&
+            (task.time || task.repeatOption !== "none") && (
+              <View
+                style={[detailStyles.timeRepeatContainer, { marginTop: 12 }]}
+              >
+                {task.time && (
+                  <View
+                    style={[
+                      detailStyles.timeRepeatBadge,
+                      detailStyles.timeBadge,
+                    ]}
+                  >
+                    <Ionicons name="time-outline" size={18} color="#007AFF" />
+                    <Text
+                      style={[
+                        detailStyles.timeRepeatText,
+                        detailStyles.timeText,
+                      ]}
+                    >
+                      {task.time}
+                    </Text>
+                  </View>
+                )}
+
+                {task.repeatOption && task.repeatOption !== "none" && (
+                  <View
+                    style={[
+                      detailStyles.timeRepeatBadge,
+                      detailStyles.repeatBadge,
+                    ]}
+                  >
+                    <Ionicons name="repeat" size={18} color="#F57C00" />
+                    <Text
+                      style={[
+                        detailStyles.timeRepeatText,
+                        detailStyles.repeatText,
+                      ]}
+                    >
+                      {getRepeatLabel(task.repeatOption)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
         </View>
 
         {/* Reminder Info */}
@@ -1622,92 +2232,110 @@ export default function TaskDetailScreen() {
                   ? "Pada hari yang sama"
                   : `${task.reminderDaysBefore} hari sebelumnya`}{" "}
                 pukul {task.reminderTime}
+                {task.category === "tugas" &&
+                  task.reminderFrequency !== "once" && (
+                    <Text style={{ fontWeight: "600" }}>
+                      {"\n"}
+                      {task.reminderFrequency === "daily"
+                        ? "• Setiap hari"
+                        : task.reminderFrequency === "every_2_days"
+                          ? "• 2 hari sekali"
+                          : task.reminderFrequency === "every_3_days"
+                            ? "• 3 hari sekali"
+                            : "• Mingguan"}
+                    </Text>
+                  )}
               </Text>
             </View>
           </View>
         )}
 
-        {/* Subtasks */}
-        <View style={detailStyles.section}>
-          <View style={detailStyles.subtaskHeader}>
-            <Text style={detailStyles.sectionTitle}>SUBTASK</Text>
-            {subtasks.length > 0 && (
-              <View style={detailStyles.progressBadge}>
-                <Text style={detailStyles.progressText}>
-                  {completedCount}/{subtasks.length}
-                </Text>
-                <View style={detailStyles.progressBarContainer}>
-                  <View
-                    style={[detailStyles.progressBar, { width: `${progress}%` }]}
-                  />
+        {/* Subtasks - Only for Tugas */}
+        {task.category === "tugas" && (
+          <View style={detailStyles.section}>
+            <View style={detailStyles.subtaskHeader}>
+              <Text style={detailStyles.sectionTitle}>SUBTASK</Text>
+              {subtasks.length > 0 && (
+                <View style={detailStyles.progressBadge}>
+                  <Text style={detailStyles.progressText}>
+                    {completedCount}/{subtasks.length}
+                  </Text>
+                  <View style={detailStyles.progressBarContainer}>
+                    <View
+                      style={[
+                        detailStyles.progressBar,
+                        { width: `${progress}%` },
+                      ]}
+                    />
+                  </View>
                 </View>
+              )}
+            </View>
+
+            {/* Add Subtask */}
+            <View style={detailStyles.addSubtaskRow}>
+              <TextInput
+                style={detailStyles.addSubtaskInput}
+                value={newSubtask}
+                onChangeText={setNewSubtask}
+                placeholder="Tambah subtask baru..."
+                placeholderTextColor="#C7C7CC"
+                onSubmitEditing={handleAddSubtask}
+                returnKeyType="done"
+              />
+              <TouchableOpacity
+                style={detailStyles.addSubtaskIconBtn}
+                onPress={handleAddSubtask}
+              >
+                <Ionicons name="add-circle" size={32} color="#007AFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Subtask List */}
+            {subtasks.map((subtask: any) => (
+              <View key={subtask.id} style={detailStyles.subtaskItem}>
+                <TouchableOpacity
+                  style={detailStyles.subtaskCheckbox}
+                  onPress={() =>
+                    handleToggleSubtask(subtask.id, subtask.completed ? 0 : 1)
+                  }
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={
+                      subtask.completed ? "checkmark-circle" : "ellipse-outline"
+                    }
+                    size={24}
+                    color={subtask.completed ? "#34C759" : "#C7C7CC"}
+                  />
+                </TouchableOpacity>
+                <Text
+                  style={[
+                    detailStyles.subtaskText,
+                    subtask.completed && detailStyles.subtaskCompleted,
+                  ]}
+                >
+                  {subtask.title}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => handleDeleteSubtask(subtask.id)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            {subtasks.length === 0 && (
+              <View style={detailStyles.emptySubtasks}>
+                <Ionicons name="list-outline" size={48} color="#C7C7CC" />
+                <Text style={detailStyles.emptySubtasksText}>
+                  Belum ada subtask
+                </Text>
               </View>
             )}
           </View>
-
-          {/* Add Subtask */}
-          <View style={detailStyles.addSubtaskRow}>
-            <TextInput
-              style={detailStyles.addSubtaskInput}
-              value={newSubtask}
-              onChangeText={setNewSubtask}
-              placeholder="Tambah subtask baru..."
-              placeholderTextColor="#C7C7CC"
-              onSubmitEditing={handleAddSubtask}
-              returnKeyType="done"
-            />
-            <TouchableOpacity
-              style={detailStyles.addSubtaskIconBtn}
-              onPress={handleAddSubtask}
-            >
-              <Ionicons name="add-circle" size={32} color="#007AFF" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Subtask List */}
-          {subtasks.map((subtask: any) => (
-            <View key={subtask.id} style={detailStyles.subtaskItem}>
-              <TouchableOpacity
-                style={detailStyles.subtaskCheckbox}
-                onPress={() =>
-                  handleToggleSubtask(subtask.id, subtask.completed ? 0 : 1)
-                }
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={
-                    subtask.completed ? "checkmark-circle" : "ellipse-outline"
-                  }
-                  size={24}
-                  color={subtask.completed ? "#34C759" : "#C7C7CC"}
-                />
-              </TouchableOpacity>
-              <Text
-                style={[
-                  detailStyles.subtaskText,
-                  subtask.completed && detailStyles.subtaskCompleted,
-                ]}
-              >
-                {subtask.title}
-              </Text>
-              <TouchableOpacity
-                onPress={() => handleDeleteSubtask(subtask.id)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-              </TouchableOpacity>
-            </View>
-          ))}
-
-          {subtasks.length === 0 && (
-            <View style={detailStyles.emptySubtasks}>
-              <Ionicons name="list-outline" size={48} color="#C7C7CC" />
-              <Text style={detailStyles.emptySubtasksText}>
-                Belum ada subtask
-              </Text>
-            </View>
-          )}
-        </View>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>

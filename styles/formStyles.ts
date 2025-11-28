@@ -12,6 +12,9 @@ export const formStyles = StyleSheet.create({
     marginBottom: 8,
     letterSpacing: 0.5,
   },
+  hide: {
+    display: "none",
+  },
   formLabelInline: {
     fontSize: 13,
     fontWeight: "600",
@@ -297,5 +300,108 @@ export const formStyles = StyleSheet.create({
   },
   timePickerChevron: {
     marginLeft: 8,
+  },
+
+  // Category Selector
+  categorySelectorRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  categoryOptionBtn: {
+    flex: 1,
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 2,
+    borderColor: "#E5E5EA",
+    gap: 6,
+  },
+  categoryOptionBtnActive: {
+    borderColor: "#007AFF",
+    backgroundColor: "#F0F7FF",
+  },
+  categoryOptionIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  categoryOptionIconTugas: {
+    backgroundColor: "#E3F2FD",
+  },
+  categoryOptionIconJadwal: {
+    backgroundColor: "#FFF3E0",
+  },
+  categoryOptionIconKegiatan: {
+    backgroundColor: "#F3E5F5",
+  },
+  categoryOptionText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#8E8E93",
+  },
+  categoryOptionTextActive: {
+    color: "#007AFF",
+  },
+
+  // Repeat Options
+  repeatOptionsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  repeatOptionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "#F2F2F7",
+    borderWidth: 2,
+    borderColor: "#E5E5EA",
+  },
+  repeatOptionBtnActive: {
+    backgroundColor: "#007AFF",
+    borderColor: "#007AFF",
+  },
+  repeatOptionText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#007AFF",
+  },
+  repeatOptionTextActive: {
+    color: "#FFFFFF",
+  },
+
+  // Reminder Frequency
+  reminderFrequencyRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+  },
+  reminderFrequencyBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+  },
+  reminderFrequencyBtnActive: {
+    backgroundColor: "#007AFF",
+    borderColor: "#007AFF",
+  },
+  reminderFrequencyText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#8E8E93",
+  },
+  reminderFrequencyTextActive: {
+    color: "#FFFFFF",
   },
 });

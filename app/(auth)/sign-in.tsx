@@ -14,38 +14,66 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { supabase } from "../../lib/supabase";
+import { useAuth } from "@/lib/AuthContext";
 
 const { height } = Dimensions.get("window");
 
-export default function Login() {
+export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const { signIn } = useAuth();
 
-  async function signInWithEmail() {
+  async function handleSignIn() {
+    // Validation
+    if (!email || !password) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+
+    if (!email.includes("@")) {
+      Alert.alert("Error", "Please enter a valid email address");
+      return;
+    }
+
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    setLoading(false);
+    
+    try {
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        // Handle specific error messages
+        if (error.message.includes("Invalid login credentials")) {
+          Alert.alert("Error", "Invalid email or password");
+        } else if (error.message.includes("Email not confirmed")) {
+          Alert.alert(
+            "Email Not Verified",
+            "Please verify your email address before signing in. Check your inbox for the verification link."
+          );
+        } else {
+          Alert.alert("Error", error.message);
+        }
+        setLoading(false);
+        return;
+      }
 
-    if (error) {
-      Alert.alert(error.message);
-      return; // jangan navigasi
-    } 
-
-    // baru navigasi kalau login sukses
-    router.replace("/");
+      // Success - AuthContext will handle the rest
+      // Navigation will happen automatically via auth state listener
+      setLoading(false);
+      router.replace("/");
+    } catch (error: any) {
+      setLoading(false);
+      Alert.alert("Error", "An unexpected error occurred");
+      console.error("Sign in error:", error);
+    }
   }
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 "
+      className="flex-1"
     >
       <ScrollView
         className="flex-1 bg-purple-50 px-6"
@@ -67,7 +95,7 @@ export default function Login() {
               Welcome Back
             </Text>
             <Text className="text-sm text-purple-600 text-center max-w-xs">
-              Sign in to continue your learning journey
+              Sign in to continue managing your tasks
             </Text>
           </View>
 
@@ -87,6 +115,7 @@ export default function Login() {
                   autoCapitalize="none"
                   keyboardType="email-address"
                   className="px-4 py-4 text-gray-900 text-base"
+                  editable={!loading}
                 />
               </View>
             </View>
@@ -105,11 +134,15 @@ export default function Login() {
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   className="flex-1 px-4 py-4 text-gray-900 text-base"
+                  editable={!loading}
+                  onSubmitEditing={handleSignIn}
+                  returnKeyType="go"
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
                   className="pr-4"
                   activeOpacity={0.7}
+                  disabled={loading}
                 >
                   <Ionicons
                     name={showPassword ? "eye-outline" : "eye-off-outline"}
@@ -124,6 +157,7 @@ export default function Login() {
             <TouchableOpacity
               className="mb-6"
               onPress={() => router.push("/(auth)/reset-password")}
+              disabled={loading}
             >
               <Text className="text-purple-700 font-semibold text-sm text-right">
                 Forgot Password?
@@ -137,7 +171,7 @@ export default function Login() {
               </View>
             ) : (
               <TouchableOpacity
-                onPress={signInWithEmail}
+                onPress={handleSignIn}
                 className="bg-purple-700 py-4 rounded-xl shadow-lg active:opacity-90"
                 activeOpacity={0.8}
               >
@@ -159,7 +193,10 @@ export default function Login() {
               <Text className="text-gray-600 text-sm">
                 Don't have an account?{" "}
               </Text>
-              <TouchableOpacity onPress={() => router.push("/(auth)/sign-up")}>
+              <TouchableOpacity 
+                onPress={() => router.push("/(auth)/sign-up")}
+                disabled={loading}
+              >
                 <Text className="text-purple-700 font-bold text-sm">
                   Sign Up
                 </Text>

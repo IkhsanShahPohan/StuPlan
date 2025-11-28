@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { CommonActions } from "@react-navigation/native";
-import { useNavigation, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -15,7 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { supabase } from "../../lib/supabase";
+import { useAuth } from "@/lib/AuthContext";
 
 const { height } = Dimensions.get("window");
 
@@ -27,48 +26,67 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const navigation = useNavigation();
+  const { signUp } = useAuth();
 
-  async function signUpWithEmail() {
-    // Validasi sederhana
+  async function handleSignUp() {
+    // Validation
     if (!email || !password || !confirmPassword) {
-      Alert.alert("Please fill in all fields");
+      Alert.alert("Error", "Please fill in all fields");
       return;
     }
+
+    if (!email.includes("@")) {
+      Alert.alert("Error", "Please enter a valid email address");
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert("Error", "Password must be at least 6 characters");
+      return;
+    }
+
     if (password !== confirmPassword) {
-      Alert.alert("Passwords do not match");
+      Alert.alert("Error", "Passwords do not match");
       return;
     }
+
+    setLoading(true);
 
     try {
-      setLoading(true);
+      const { error } = await signUp(email, password);
 
-      // Panggil Supabase API untuk sign up
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `exp://${process.env.PORT}`,
-        },
-      });
+      if (error) {
+        // Handle specific error messages
+        if (error.message.includes("already registered")) {
+          Alert.alert(
+            "Account Exists",
+            "This email is already registered. Please sign in instead."
+          );
+        } else if (error.message.includes("Password should be")) {
+          Alert.alert("Error", "Password must be at least 6 characters");
+        } else {
+          Alert.alert("Error", error.message);
+        }
+        setLoading(false);
+        return;
+      }
 
-      if (error) throw error;
-
-      // Jika berhasil daftar
+      // Success
+      setLoading(false);
       Alert.alert(
-        "Success!",
-        "Your account has been created. Please verify your email before logging in.",
+        "Success! 🎉",
+        "Your account has been created successfully. Please check your email to verify your account before signing in.",
         [
           {
             text: "OK",
-            onPress: () => router.push("/(auth)/sign-in"), // Kembali ke login
+            onPress: () => router.replace("/(auth)/sign-in"),
           },
         ]
       );
     } catch (error: any) {
-      Alert.alert("Error", error.message);
-    } finally {
       setLoading(false);
+      Alert.alert("Error", "An unexpected error occurred");
+      console.error("Sign up error:", error);
     }
   }
 
@@ -97,7 +115,7 @@ export default function SignUp() {
               Create Account
             </Text>
             <Text className="text-sm text-purple-600 text-center max-w-xs">
-              Join us and manage your student life easily
+              Join us and manage your tasks efficiently
             </Text>
           </View>
 
@@ -117,6 +135,7 @@ export default function SignUp() {
                   autoCapitalize="none"
                   keyboardType="email-address"
                   className="px-4 py-4 text-gray-900 text-base"
+                  editable={!loading}
                 />
               </View>
             </View>
@@ -128,18 +147,20 @@ export default function SignUp() {
               </Text>
               <View className="bg-white rounded-xl shadow-sm border border-purple-100 flex-row items-center">
                 <TextInput
-                  placeholder="Enter your password"
+                  placeholder="Enter your password (min. 6 characters)"
                   placeholderTextColor="#9ca3af"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   className="flex-1 px-4 py-4 text-gray-900 text-base"
+                  editable={!loading}
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
                   className="pr-4"
                   activeOpacity={0.7}
+                  disabled={loading}
                 >
                   <Ionicons
                     name={showPassword ? "eye-outline" : "eye-off-outline"}
@@ -164,11 +185,15 @@ export default function SignUp() {
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
                   className="flex-1 px-4 py-4 text-gray-900 text-base"
+                  editable={!loading}
+                  onSubmitEditing={handleSignUp}
+                  returnKeyType="go"
                 />
                 <TouchableOpacity
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="pr-4"
                   activeOpacity={0.7}
+                  disabled={loading}
                 >
                   <Ionicons
                     name={
@@ -181,6 +206,22 @@ export default function SignUp() {
               </View>
             </View>
 
+            {/* Password Requirements Info */}
+            <View className="mb-6 bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <View className="flex-row items-center mb-1">
+                <Ionicons name="information-circle" size={16} color="#3b82f6" />
+                <Text className="text-xs font-semibold text-blue-900 ml-2">
+                  Password Requirements:
+                </Text>
+              </View>
+              <Text className="text-xs text-blue-800 ml-6">
+                • At least 6 characters long
+              </Text>
+              <Text className="text-xs text-blue-800 ml-6">
+                • Must match confirmation
+              </Text>
+            </View>
+
             {/* Sign Up Button */}
             {loading ? (
               <View className="bg-purple-700 py-4 rounded-xl items-center justify-center">
@@ -188,12 +229,12 @@ export default function SignUp() {
               </View>
             ) : (
               <TouchableOpacity
-                onPress={signUpWithEmail}
+                onPress={handleSignUp}
                 className="bg-purple-700 py-4 rounded-xl shadow-lg active:opacity-90"
                 activeOpacity={0.8}
               >
                 <Text className="text-white text-center font-bold text-base">
-                  Sign Up
+                  Create Account
                 </Text>
               </TouchableOpacity>
             )}
@@ -211,14 +252,8 @@ export default function SignUp() {
                 Already have an account?{" "}
               </Text>
               <TouchableOpacity
-                onPress={() =>
-                  navigation.dispatch(
-                    CommonActions.reset({
-                      index: 0,
-                      routes: [{ name: "(auth)/sign-in" }], // halaman baru
-                    })
-                  )
-                }
+                onPress={() => router.replace("/(auth)/sign-in")}
+                disabled={loading}
               >
                 <Text className="text-purple-700 font-bold text-sm">
                   Sign In

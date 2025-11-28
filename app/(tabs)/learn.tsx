@@ -234,7 +234,7 @@ export default function Learn() {
             style={[
               styles.statusValue,
               { color: isSyncing ? "#007AFF" : "#8E8E93" },
-            ]}
+            ]}  
           >
             {isSyncing ? "Sedang Berlangsung" : "Siap"}
           </Text>

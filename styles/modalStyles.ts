@@ -112,10 +112,12 @@ export const modalStyles = StyleSheet.create({
   },
   filterApplyBtn: {
     flex: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#007AFF",
     borderRadius: 12,
     padding: 16,
-    alignItems: "center",
     shadowColor: "#007AFF",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,

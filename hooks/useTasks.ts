@@ -1,21 +1,31 @@
 import { useEffect, useState } from "react";
-
 import { subtasks, tasks } from "@/db/schema";
-import { and, desc, eq, gte, like, lte } from "drizzle-orm";
+import { and, desc, eq, gte, like, lte, asc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import { useSQLiteContext } from "expo-sqlite";
+import { useAuth } from "@/lib/AuthContext";
+import { 
+  scheduleTaskNotification, 
+  cancelTaskNotifications 
+} from "@/lib/notificationHelper";
 
 interface Task {
   id: number;
+  userId: string;
   title: string;
   description: string | null;
   notes: string | null;
+  category: "tugas" | "jadwal" | "kegiatan";
   deadline: string;
+  time: string | null;
+  repeatOption: "none" | "daily" | "weekly" | "monthly" | "yearly";
+  repeatEndDate: string | null;
   status: "pending" | "in_progress" | "completed";
-  reminderEnabled: number;
+  reminderEnabled: number | boolean;
   reminderDaysBefore: number | null;
   reminderTime: string | null;
-  notificationId: string | null;
+  reminderFrequency: "once" | "daily" | "every_2_days" | "every_3_days" | "weekly";
+  notificationIds: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 }
@@ -24,21 +34,29 @@ interface Subtask {
   id: number;
   taskId: number;
   title: string;
-  completed: number;
+  completed: number | boolean;
   createdAt: string | null;
 }
 
 export function useTasks() {
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
   const x = useSQLiteContext();
   const db = drizzle(x);
 
   const fetchTasks = async () => {
+    if (!user) {
+      setAllTasks([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const result = await db
         .select()
         .from(tasks)
+        .where(eq(tasks.userId, user.id))
         .orderBy(desc(tasks.createdAt));
       setAllTasks(result as Task[]);
     } catch (error) {
@@ -50,37 +68,75 @@ export function useTasks() {
 
   useEffect(() => {
     fetchTasks();
-  }, []);
+  }, [user]);
 
   const createTask = async (
     input: {
       title: string;
       description?: string;
       notes?: string;
+      category: "tugas" | "jadwal" | "kegiatan";
       deadline: string;
+      time?: string;
+      repeatOption?: "none" | "daily" | "weekly" | "monthly" | "yearly";
+      repeatEndDate?: string;
       reminderEnabled?: boolean;
       reminderDaysBefore?: number;
       reminderTime?: string;
+      reminderFrequency?: "once" | "daily" | "every_2_days" | "every_3_days" | "weekly";
     },
-    subtaskTitles: string[]
+    subtaskTitles: string[] = []
   ) => {
+    if (!user) throw new Error("User not authenticated");
+
     try {
       const [newTask] = await db
         .insert(tasks)
         .values({
+          userId: user.id,
           title: input.title,
           description: input.description || null,
           notes: input.notes || null,
+          category: input.category,
           deadline: input.deadline,
+          time: input.time || null,
+          repeatOption: input.repeatOption || "none",
+          repeatEndDate: input.repeatEndDate || null,
           status: "pending",
           reminderEnabled: input.reminderEnabled ? 1 : 0,
           reminderDaysBefore: input.reminderDaysBefore || 1,
           reminderTime: input.reminderTime || "09:00",
-          notificationId: null,
+          reminderFrequency: input.reminderFrequency || "once",
+          notificationIds: null,
         })
         .returning();
 
-      if (subtaskTitles.length > 0) {
+      // Schedule notifications
+      if (input.reminderEnabled) {
+        const notificationIds = await scheduleTaskNotification({
+          id: newTask.id,
+          title: newTask.title,
+          category: newTask.category,
+          deadline: newTask.deadline,
+          time: newTask.time || undefined,
+          repeatOption: newTask.repeatOption as any,
+          repeatEndDate: newTask.repeatEndDate || undefined,
+          reminderEnabled: true,
+          reminderDaysBefore: input.reminderDaysBefore || 1,
+          reminderTime: input.reminderTime || "09:00",
+          reminderFrequency: input.reminderFrequency || "once",
+        });
+
+        if (notificationIds.length > 0) {
+          await db
+            .update(tasks)
+            .set({ notificationIds: JSON.stringify(notificationIds) })
+            .where(eq(tasks.id, newTask.id));
+        }
+      }
+
+      // Subtasks hanya untuk category 'tugas'
+      if (input.category === "tugas" && subtaskTitles.length > 0) {
         await db.insert(subtasks).values(
           subtaskTitles.map((title) => ({
             taskId: newTask.id,
@@ -89,7 +145,7 @@ export function useTasks() {
           }))
         );
       }
-
+      console.log("Notification addeed successfully!")
       await fetchTasks();
     } catch (error) {
       console.error("Error creating task:", error);
@@ -112,6 +168,17 @@ export function useTasks() {
 
   const deleteTask = async (id: number) => {
     try {
+      // Get task to cancel notifications
+      const taskToDelete = await db
+        .select()
+        .from(tasks)
+        .where(eq(tasks.id, id))
+        .limit(1);
+
+      if (taskToDelete.length > 0 && taskToDelete[0].notificationIds) {
+        await cancelTaskNotifications(taskToDelete[0].notificationIds);
+      }
+
       await db.delete(tasks).where(eq(tasks.id, id));
       await fetchTasks();
     } catch (error) {
@@ -123,10 +190,13 @@ export function useTasks() {
   const searchTasks = async (
     query: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
+    category?: "tugas" | "jadwal" | "kegiatan" | "all"
   ) => {
+    if (!user) return;
+
     try {
-      const conditions: any[] = [];
+      const conditions: any[] = [eq(tasks.userId, user.id)];
 
       if (query.trim()) {
         conditions.push(like(tasks.title, `%${query}%`));
@@ -141,7 +211,27 @@ export function useTasks() {
         );
       }
 
-      if (conditions.length === 0) {
+      if (category && category !== "all") {
+        conditions.push(eq(tasks.category, category));
+      }
+
+      const result = await db
+        .select()
+        .from(tasks)
+        .where(and(...conditions))
+        .orderBy(desc(tasks.createdAt));
+
+      setAllTasks(result as Task[]);
+    } catch (error) {
+      console.error("Error searching tasks:", error);
+    }
+  };
+
+  const filterByCategory = async (category: "tugas" | "jadwal" | "kegiatan" | "all") => {
+    if (!user) return;
+
+    try {
+      if (category === "all") {
         await fetchTasks();
         return;
       }
@@ -149,12 +239,79 @@ export function useTasks() {
       const result = await db
         .select()
         .from(tasks)
-        .where(conditions.length === 1 ? conditions[0] : and(...conditions))
+        .where(and(eq(tasks.userId, user.id), eq(tasks.category, category)))
         .orderBy(desc(tasks.createdAt));
 
       setAllTasks(result as Task[]);
     } catch (error) {
-      console.error("Error searching tasks:", error);
+      console.error("Error filtering tasks:", error);
+    }
+  };
+
+  const sortByDeadline = async (order: "nearest" | "farthest" = "nearest") => {
+    if (!user) return;
+
+    try {
+      const result = await db
+        .select()
+        .from(tasks)
+        .where(eq(tasks.userId, user.id))
+        .orderBy(order === "nearest" ? asc(tasks.deadline) : desc(tasks.deadline));
+
+      setAllTasks(result as Task[]);
+    } catch (error) {
+      console.error("Error sorting tasks:", error);
+    }
+  };
+
+  const filterByStatus = async (status: "completed" | "pending" | "overdue" | "all") => {
+    if (!user) return;
+
+    try {
+      const now = new Date().toISOString();
+      let result: Task[];
+
+      switch (status) {
+        case "completed":
+          result = await db
+            .select()
+            .from(tasks)
+            .where(and(eq(tasks.userId, user.id), eq(tasks.status, "completed")))
+            .orderBy(desc(tasks.createdAt)) as Task[];
+          break;
+        case "pending":
+          result = await db
+            .select()
+            .from(tasks)
+            .where(
+              and(
+                eq(tasks.userId, user.id),
+                eq(tasks.status, "pending"),
+                gte(tasks.deadline, now)
+              )
+            )
+            .orderBy(asc(tasks.deadline)) as Task[];
+          break;
+        case "overdue":
+          result = await db
+            .select()
+            .from(tasks)
+            .where(
+              and(
+                eq(tasks.userId, user.id),
+                lte(tasks.deadline, now)
+              )
+            )
+            .orderBy(desc(tasks.deadline)) as Task[];
+          break;
+        default:
+          await fetchTasks();
+          return;
+      }
+
+      setAllTasks(result);
+    } catch (error) {
+      console.error("Error filtering by status:", error);
     }
   };
 
@@ -166,6 +323,9 @@ export function useTasks() {
     deleteTask,
     refreshTasks: fetchTasks,
     searchTasks,
+    filterByCategory,
+    sortByDeadline,
+    filterByStatus,
   };
 }
 

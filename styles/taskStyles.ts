@@ -182,6 +182,73 @@ export const taskStyles = StyleSheet.create({
     elevation: 8,
   },
 
+  // Category Filter
+  categoryFilterContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#E5E5EA",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  categoryFilterRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  categoryFilterBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#F2F2F7",
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+  },
+  categoryFilterBtnActive: {
+    backgroundColor: "#007AFF",
+    borderColor: "#007AFF",
+  },
+  categoryFilterText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#8E8E93",
+  },
+  categoryFilterTextActive: {
+    color: "#FFFFFF",
+  },
+
+  // Category Badge
+  categoryBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  categoryBadgeTugas: {
+    backgroundColor: "#E3F2FD",
+  },
+  categoryBadgeJadwal: {
+    backgroundColor: "#FFF3E0",
+  },
+  categoryBadgeKegiatan: {
+    backgroundColor: "#F3E5F5",
+  },
+  categoryBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  categoryBadgeTextTugas: {
+    color: "#1976D2",
+  },
+  categoryBadgeTextJadwal: {
+    color: "#F57C00",
+  },
+  categoryBadgeTextKegiatan: {
+    color: "#7B1FA2",
+  },
+
   // Loading
   loadingContainer: {
     flex: 1,

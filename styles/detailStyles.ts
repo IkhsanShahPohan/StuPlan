@@ -13,7 +13,7 @@ export const detailStyles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 0.5,
     borderBottomColor: "#C6C6C8",
@@ -33,7 +33,11 @@ export const detailStyles = StyleSheet.create({
     paddingVertical: 6,
     backgroundColor: "#007AFF",
     borderRadius: 8,
+    flexDirection: "row", // 🔥 ini bikin anak-anaknya sebaris
+    alignItems: "center", // opsional: biar rapih vertikal
+    gap: 6, // opsional: jarak antar child (RN 0.71+)
   },
+
   editBtnText: {
     fontSize: 15,
     fontWeight: "600",
@@ -48,13 +52,17 @@ export const detailStyles = StyleSheet.create({
 
   // Status Badge
   statusBadge: {
+    // borderWidth: 1,
+    // borderColor: "#C8C8C8",
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 20,
-    marginTop: 16,
+
+    // ❌ JANGAN ada marginTop di sini
+    // marginTop: 16,
   },
   statusBadgeText: {
     fontSize: 15,
@@ -236,5 +244,69 @@ export const detailStyles = StyleSheet.create({
     color: "#007AFF",
     marginLeft: 8,
     flex: 1,
+  },
+
+  // Category Badge Large
+  categoryBadgeLarge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 8,
+  },
+  categoryBadgeTugas: {
+    backgroundColor: "#E3F2FD",
+  },
+  categoryBadgeJadwal: {
+    backgroundColor: "#FFF3E0",
+  },
+  categoryBadgeKegiatan: {
+    backgroundColor: "#F3E5F5",
+  },
+  categoryBadgeTextLarge: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  categoryBadgeTextTugas: {
+    color: "#1976D2",
+  },
+  categoryBadgeTextJadwal: {
+    color: "#F57C00",
+  },
+  categoryBadgeTextKegiatan: {
+    color: "#7B1FA2",
+  },
+
+  // Time & Repeat Display
+  timeRepeatContainer: {
+    flexDirection: "row",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  timeRepeatBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  timeBadge: {
+    backgroundColor: "#F0F7FF",
+  },
+  repeatBadge: {
+    backgroundColor: "#FFF3E0",
+  },
+  timeRepeatText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  timeText: {
+    color: "#007AFF",
+  },
+  repeatText: {
+    color: "#F57C00",
   },
 });
