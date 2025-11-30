@@ -4,7 +4,6 @@ import { drizzle } from "drizzle-orm/expo-sqlite";
 import * as Notifications from "expo-notifications";
 import { useSQLiteContext } from "expo-sqlite";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function InsertUsersScreen() {
   // Ambil DB dari SQLiteProvider
@@ -69,7 +68,7 @@ export default function InsertUsersScreen() {
   };
 
   async function schedulePushNotification() {
-    await Notifications.scheduleNotificationAsync({
+    const result = await Notifications.scheduleNotificationAsync({
       content: {
         title: "Hei man, how is your day?",
         body: "Here is the notification body",
@@ -82,24 +81,80 @@ export default function InsertUsersScreen() {
       },
       trigger: null,
     });
+    console.log("Result Notification: ", result);
+  }
+
+  async function seeAllNotification() {
+    const pending = await Notifications.getAllScheduledNotificationsAsync();
+    console.log(JSON.stringify(pending, null, 2));
+  }
+
+  async function scheduleAndCancel(identifier: string) {
+    try {
+      await Notifications.cancelScheduledNotificationAsync(identifier);
+      console.log("Berhasil hapus notifikasi dengan identifier ", identifier);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async function cancelAllNotifications() {
+    const arr = [
+      "c5a0c43c-b743-4616-b8c5-3f2c34e93661",
+      "263a754c-69a7-4247-b1b2-3cd405c611d2",
+      "4026d6a8-6102-416c-8535-0190e71ec971",
+      "94284dc6-91c7-48ae-88f1-4b191225a2ef",
+    ];
+
+    for (const id of arr) {
+      await scheduleAndCancel(id);
+      console.log("Berhasil hapus notifikasi dengan identifier ", id);
+    }
+  }
+
+  async function checkNotificatinDaily() {
+    try {
+      const result = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Pengingat Harian",
+          body: "Saatnya cek tugasmu hari ini!",
+        },
+        trigger: {
+          type: "daily",
+          hour: 16,
+          minute: 52,
+        },
+      });
+      console.log("Result: ", result);
+      console.log("Sucess notifikasi harian!");
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   return (
-    <SafeAreaView>
-      <View style={{ padding: 20 }}>
-        <Text style={{ fontSize: 20, marginBottom: 20 }}>
-          Insert Sample Users
-        </Text>
+    // <SafeAreaView>
+    <View style={{ padding: 20 }}>
+      <Text style={{ fontSize: 20, marginBottom: 20, gap: 20 }}>
+        Insert Sample Users
+      </Text>
 
-        <TouchableOpacity
-          style={styles.button}
-          activeOpacity={0.7}
-          onPress={schedulePushNotification}
-        >
-          <Text style={styles.buttonText}>Insert Users</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+      <TouchableOpacity
+        style={styles.button}
+        activeOpacity={0.7}
+        onPress={seeAllNotification}
+      >
+        <Text style={styles.buttonText}>Insert Users</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.button}
+        activeOpacity={0.7}
+        onPress={checkNotificatinDaily}
+      >
+        <Text style={styles.buttonText}>Hapus notif</Text>
+      </TouchableOpacity>
+    </View>
+    // </SafeAreaView>
   );
 }
 const styles = StyleSheet.create({

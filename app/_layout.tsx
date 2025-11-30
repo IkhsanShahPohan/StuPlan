@@ -49,7 +49,8 @@ export default function AuthLayout() {
     function redirect(notification: Notifications.Notification) {
       const id = notification.request.content.data?.id;
       console.log(id);
-      router.push(`/tasks/${id}`);
+      // router.push(`/tasks/${id}`);
+      router.push("/test");
     }
 
     const subscription = Notifications.addNotificationResponseReceivedListener(
@@ -58,14 +59,18 @@ export default function AuthLayout() {
       }
     );
 
-    const last = Notifications.getLastNotificationResponse();
-    console.log(last);
-    if (last?.notification) {
-      redirect(last.notification);
-    }
+    // Delay pengecekan last notification
+    const timer = setTimeout(async () => {
+      const last = await Notifications.getLastNotificationResponseAsync();
+      console.log(last);
+      if (last?.notification) {
+        redirect(last.notification);
+      }
+    }, 500); // Tunggu 500ms untuk memastikan layout sudah mounted
 
     return () => {
       subscription.remove();
+      clearTimeout(timer);
     };
   }, []);
 
@@ -104,7 +109,7 @@ async function schedulePushNotification() {
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: 2,
+      seconds: 1,
     },
   });
 }
@@ -121,40 +126,16 @@ async function registerForPushNotificationsAsync() {
     });
   }
 
-  // if (Device.isDevice) {
-  //   const { status: existingStatus } =
-  //     await Notifications.getPermissionsAsync();
-  //   let finalStatus = existingStatus;
-  //   if (existingStatus !== "granted") {
-  //     const { status } = await Notifications.requestPermissionsAsync();
-  //     finalStatus = status;
-  //   }
-  //   if (finalStatus !== "granted") {
-  //     alert("Failed to get push token for push notification!");
-  //     return;
-  //   }
-  //   // Learn more about projectId:
-  //   // https://docs.expo.dev/push-notifications/push-notifications-setup/#configure-projectid
-  //   // EAS projectId is used here.
-  //   try {
-  //     const projectId =
-  //       Constants?.expoConfig?.extra?.eas?.projectId ??
-  //       Constants?.easConfig?.projectId;
-  //     if (!projectId) {
-  //       throw new Error("Project ID not found");
-  //     }
-  //     token = (
-  //       await Notifications.getExpoPushTokenAsync({
-  //         projectId,
-  //       })
-  //     ).data;
-  //     console.log(token);
-  //   } catch (e) {
-  //     token = `${e}`;
-  //   }
-  // } else {
-  //   alert("Must use physical device for Push Notifications");
-  // }
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+  if (existingStatus !== "granted") {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+    if (finalStatus !== "granted") {
+      alert("Failed to get push token for push notification!");
+      return;
+    }
 
-  return token;
+    return token;
+  }
 }

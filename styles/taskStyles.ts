@@ -4,7 +4,7 @@ export const taskStyles = StyleSheet.create({
   // Container
   container: {
     flex: 1,
-    backgroundColor: "#F2F2F7",
+    backgroundColor: "#F8FAFC",
   },
 
   // Header
@@ -45,7 +45,7 @@ export const taskStyles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#FFFFFF",
     marginHorizontal: 16,
-    marginVertical: 12,
+    marginBottom: 20,
     paddingHorizontal: 12,
     height: 44,
     borderRadius: 12,
@@ -168,7 +168,7 @@ export const taskStyles = StyleSheet.create({
   fab: {
     position: "absolute",
     right: 20,
-    bottom: 80,
+    bottom: 100,
     width: 60,
     height: 60,
     borderRadius: 30,
@@ -184,13 +184,22 @@ export const taskStyles = StyleSheet.create({
 
   // Category Filter
   categoryFilterContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 0.5,
     borderBottomColor: "#E5E5EA",
     flexDirection: "row",
-    alignItems: "center",
+    justifyContent: "center", // isi horizontal
+    alignItems: "center", // isi vertical
+    width: "92%",
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    alignSelf: "center", // <--- INI WAJIB utk center horizontal!
   },
   categoryFilterRow: {
     flexDirection: "row",

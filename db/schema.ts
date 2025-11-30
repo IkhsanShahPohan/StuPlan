@@ -21,7 +21,7 @@ export const tasks = sqliteTable("tasks", {
   category: text("category", { enum: ["tugas", "jadwal", "kegiatan"] })
     .notNull()
     .default("tugas"),
-  deadline: text("deadline").notNull(),
+  deadline: text("deadline"),
   time: text("time"), // Untuk jadwal & kegiatan
   repeatOption: text("repeat_option", {
     enum: ["none", "daily", "weekly", "monthly", "yearly"],

@@ -14,8 +14,6 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        // "foregroundImage": "./assets/images/icon-pm.png",
-        // "backgroundImage": "./assets/images/icon-pm.png",
         "monochromeImage": "./assets/images/icon-pm.png"
       },
       "edgeToEdgeEnabled": true,
@@ -46,10 +44,6 @@
           "icon": "./assets/images/icon-pm.png",
           "color": "#ffffff",
           "defaultChannel": "default",
-          // "sounds": [
-          //   "./local/assets/notification_sound.wav",
-          //   "./local/assets/notification_sound_other.wav"
-          // ],
           "enableBackgroundRemoteNotifications": false
         }
       ],
@@ -58,6 +52,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "74b9a731-6366-49da-8ae5-b8253903c5f4"
+      }
     }
   }
 }

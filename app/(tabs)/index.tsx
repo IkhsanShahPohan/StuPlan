@@ -83,7 +83,7 @@ export default function Index() {
   const renderTaskContent = () => <TaskContent tasks={upcomingTasks} />;
 
   return (
-    <View className="flex-1 bg-[#F2F2F7]">
+    <View className="flex-1 bg-[#F8FAFC]">
       <ScrollView
         className="flex-1 bg-gray-50"
         contentContainerStyle={{ paddingBottom: 80 }}
