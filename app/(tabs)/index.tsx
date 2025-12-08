@@ -1,173 +1,460 @@
-import Overview from "@/organism/Overview";
-import PomodoroSection from "@/organism/PomodoroContent";
-import TaskContent from "@/organism/TaskContent";
-import { useState } from "react";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+import { useAuth } from '@/lib/AuthContext'; 
+import { useTask } from '@/hooks/useTasks';
+import { styles } from '@/styles/homeStyles'; 
+import { router } from 'expo-router';
 
-export default function Index() {
-  const [activeFilter, setActiveFilter] = useState("All");
-  const userName = "Budi";
-  const taskProgress = 75;
+const HomeScreen = () => {
+  const { user } = useAuth();
+  const {
+    tasks,
+    loading,
+    refreshTasks,
+    getUpcomingTasks,
+    getOverdueTasks,
+    getCompletedTasks,
+  } = useTask(user?.id || '');
 
-  const filters = ["All", "Task", "Pomodoro"];
+  const [greeting, setGreeting] = useState('');
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Dummy data untuk pomodoro history
-  const pomodoroHistory = [
-    {
-      id: 1,
-      task: "Belajar React Native",
-      duration: "25 min",
-      completedAt: "Hari ini, 14:30",
-    },
-    {
-      id: 2,
-      task: "Mengerjakan Tugas Kalkulus",
-      duration: "25 min",
-      completedAt: "Hari ini, 10:15",
-    },
-    {
-      id: 3,
-      task: "Membaca Jurnal",
-      duration: "25 min",
-      completedAt: "Kemarin, 16:45",
-    },
-  ];
+  // Set greeting based on time
+  useEffect(() => {
+    const updateGreeting = () => {
+      const hour = new Date().getHours();
+      if (hour < 12) setGreeting('Good Morning');
+      else if (hour < 18) setGreeting('Good Afternoon');
+      else setGreeting('Good Evening');
+    };
 
-  // Data dipindahkan ke sini
-  const upcomingTasks = [
-    {
-      id: 1,
-      title: "Tugas Matematika Diskrit",
-      subject: "Matematika",
-      dueDate: "2 hari lagi",
-      priority: "High",
-    },
-    {
-      id: 2,
-      title: "Essay Bahasa Indonesia",
-      subject: "Bahasa",
-      dueDate: "4 hari lagi",
-      priority: "Medium",
-    },
-    {
-      id: 3,
-      title: "Presentasi Proyek Akhir",
-      subject: "Pemrograman",
-      dueDate: "6 hari lagi",
-      priority: "High",
-    },
-  ];
+    updateGreeting();
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+      updateGreeting();
+    }, 60000);
 
-  const handleSeeMorePomodoro = () => {
-    console.log("See more pressed!");
+    return () => clearInterval(timer);
+  }, []);
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const completedToday = tasks.filter((task) => {
+      const updatedAt = new Date(task.updatedAt || '');
+      return (
+        task.status === 'completed' &&
+        updatedAt >= today &&
+        updatedAt < tomorrow
+      );
+    }).length;
+
+    const upcomingTasks = getUpcomingTasks();
+    const overdueTasks = getOverdueTasks();
+    const completedTasks = getCompletedTasks();
+
+    const totalTasks = tasks.length;
+    const completionRate =
+      totalTasks > 0
+        ? Math.round((completedTasks.length / totalTasks) * 100)
+        : 0;
+
+    return {
+      totalTasks,
+      completedToday,
+      upcoming: upcomingTasks.length,
+      overdue: overdueTasks.length,
+      completionRate,
+    };
+  }, [tasks, getUpcomingTasks, getOverdueTasks, getCompletedTasks]);
+
+  // Get upcoming tasks (limited to 5)
+  const upcomingTasksList = useMemo(() => {
+    return getUpcomingTasks()
+      .slice(0, 5)
+      .sort((a, b) => {
+        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      });
+  }, [getUpcomingTasks]);
+
+  // Category helpers
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'tugas':
+        return '#8B5CF6';
+      case 'jadwal':
+        return '#3B82F6';
+      case 'kegiatan':
+        return '#10B981';
+      default:
+        return '#6B7280';
+    }
   };
 
-  const renderAllContent = () => (
-    <View className="flex gap-4">
-      <TaskContent tasks={upcomingTasks} />
-      {/* <PomodoroSection
-        sessions={pomodoroHistory}
-        onSeeMore={handleSeeMorePomodoro}
-      /> */}
-      {/* <Overview /> */}
-    </View>
-  );
+  const getCategoryIcon = (category: string, color: string, size: number = 20) => {
+    switch (category) {
+      case 'tugas':
+        return <Ionicons name="checkmark-circle" size={size} color={color} />;
+      case 'jadwal':
+        return <Ionicons name="calendar" size={size} color={color} />;
+      case 'kegiatan':
+        return <Ionicons name="pulse" size={size} color={color} />;
+      default:
+        return <Ionicons name="flag" size={size} color={color} />;
+    }
+  };
 
-  const renderPomodoroContent = () => (
-    <PomodoroSection
-      sessions={pomodoroHistory}
-      onSeeMore={handleSeeMorePomodoro}
-    />
-  );
+  const formatTimeRemaining = (deadline: string) => {
+    const diff = new Date(deadline).getTime() - Date.now();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
 
-  const renderTaskContent = () => <TaskContent tasks={upcomingTasks} />;
+    if (diff < 0) return 'Overdue';
+    if (hours < 1) return 'Less than 1h';
+    if (hours < 24) return `${hours}h remaining`;
+
+    const days = Math.floor(hours / 24);
+    return `${days}d remaining`;
+  };
+
+  // Pull to refresh
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshTasks();
+    setRefreshing(false);
+  };
+
+  // Navigation handlers
+  const handleCreateTask = (category?: string) => {
+    router.push({
+      pathname: '/tasks/create',
+      params: { category },
+    });
+  };
+
+  const handleViewTask = (taskId: number) => {
+    router.push({
+      pathname: `/tasks/${taskId}`,
+    });
+  };
+
+  const handleViewAllTasks = () => {
+    router.push('/tasks');
+  };
+
+  // Get user name from email
+  const userName = user?.email?.split('@')[0] || 'User';
+  const displayName =
+    userName.charAt(0).toUpperCase() + userName.slice(1).toLowerCase();
+
+  if (loading && tasks.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#667eea" />
+        <Text style={styles.loadingText}>Loading your tasks...</Text>
+      </View>
+    );
+  }
 
   return (
-    <View className="flex-1 bg-[#F8FAFC]">
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        contentContainerStyle={{ paddingBottom: 80 }}
+    <View style={styles.container}>
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={['#667eea', '#764ba2', '#f093fb']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
       >
-        {/* Header Section */}
-        <View className="px-5 pt-12 pb-6 bg-white">
-          <View className="flex-row justify-between items-center">
-            <View>
-              <Text className="text-2xl font-bold text-gray-800">
-                Hello, {userName}
-              </Text>
-            </View>
-            <View className="w-12 h-12 rounded-full bg-gray-300 overflow-hidden">
-              <Image
-                source={{
-                  uri:
-                    "https://ui-avatars.com/api/?name=" +
-                    userName +
-                    "&background=6366f1&color=fff",
-                }}
-                className="w-full h-full"
-              />
-            </View>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>{greeting} 👋</Text>
+            <Text style={styles.userName}>{displayName}</Text>
+            <Text style={styles.dateTime}>
+              {currentTime.toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </Text>
           </View>
-        </View>
-
-        {/* Progress Card */}
-        <View className="px-5 mb-2 bg-white pb-6">
-          <View
-            className="rounded-3xl p-8 flex-row justify-between items-center"
-            style={{ backgroundColor: "#BADFDB" }}
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => router.push('/notifications')}
           >
-            <View className="flex-1 pr-4 gap-2">
-              <Text className="text-xl font-bold text-[#3b4544] mb-3 max-w-40">
-                Your today task's is almost done
-              </Text>
-              <TouchableOpacity className="bg-white rounded-full px-5 py-2.5 self-start">
-                <Text className="text-sm font-semibold text-gray-800">
-                  View tasks
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <View className="items-center justify-center">
-              <View className="w-20 h-20 rounded-full bg-white items-center justify-center">
-                <Text className="text-2xl font-bold text-gray-800">
-                  {taskProgress}%
+            <Ionicons name="notifications" size={24} color="#fff" />
+            {stats.overdue > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {stats.overdue}
                 </Text>
               </View>
+            )}
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#667eea"
+            colors={['#667eea', '#764ba2']}
+          />
+        }
+      >
+        {/* Quick Stats */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statsGrid}>
+            <TouchableOpacity
+              style={[styles.statCard, styles.statCardPrimary]}
+              activeOpacity={0.7}
+            >
+              <View style={styles.statIconContainer}>
+                <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+              </View>
+              <Text style={styles.statValue}>{stats.completedToday}</Text>
+              <Text style={styles.statLabel}>Completed Today</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.statCard, styles.statCardSecondary]}
+              activeOpacity={0.7}
+              onPress={handleViewAllTasks}
+            >
+              <View style={styles.statIconContainer}>
+                <Ionicons name="time" size={24} color="#3B82F6" />
+              </View>
+              <Text style={styles.statValue}>{stats.upcoming}</Text>
+              <Text style={styles.statLabel}>Upcoming</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.statCard, styles.statCardWarning]}
+              activeOpacity={0.7}
+            >
+              <View style={styles.statIconContainer}>
+                <Ionicons name="flash" size={24} color="#F59E0B" />
+              </View>
+              <Text style={styles.statValue}>{stats.overdue}</Text>
+              <Text style={styles.statLabel}>Overdue</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.statCard, styles.statCardSuccess]}
+              activeOpacity={0.7}
+            >
+              <View style={styles.statIconContainer}>
+                <Ionicons name="trending-up" size={24} color="#8B5CF6" />
+              </View>
+              <Text style={styles.statValue}>{stats.completionRate}%</Text>
+              <Text style={styles.statLabel}>Completion</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Progress Overview */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Today's Progress</Text>
+            <TouchableOpacity onPress={handleViewAllTasks}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.progressCard}>
+            <View style={styles.progressHeader}>
+              <Ionicons name="bar-chart" size={24} color="#667eea" />
+              <Text style={styles.progressTitle}>Daily Goal</Text>
+            </View>
+
+            <View style={styles.progressBarContainer}>
+              <View style={styles.progressBarBackground}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    { width: `${stats.completionRate}%` },
+                  ]}
+                />
+              </View>
+            </View>
+
+            <View style={styles.progressStats}>
+              <Text style={styles.progressText}>
+                {stats.completedToday} of {stats.totalTasks} tasks completed
+              </Text>
+              <Text style={styles.progressPercentage}>
+                {stats.completionRate}%
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* Filter Section */}
-        <View className="px-5 mb-4">
-          <View className="flex-row gap-3">
-            {filters.map((filter) => (
-              <TouchableOpacity
-                key={filter}
-                onPress={() => setActiveFilter(filter)}
-                className={`px-6 py-2.5 rounded-full ${
-                  activeFilter === filter
-                    ? "bg-indigo-500"
-                    : "bg-white border border-gray-200"
-                }`}
-              >
-                <Text
-                  className={`text-sm font-semibold ${
-                    activeFilter === filter ? "text-white" : "text-gray-600"
-                  }`}
+        {/* Upcoming Tasks */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Upcoming Tasks</Text>
+            <TouchableOpacity onPress={handleViewAllTasks}>
+              <Ionicons name="chevron-forward" size={24} color="#667eea" />
+            </TouchableOpacity>
+          </View>
+
+          {upcomingTasksList.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="flag-outline" size={48} color="#CBD5E1" />
+              <Text style={styles.emptyStateText}>No upcoming tasks</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Create a new task to get started
+              </Text>
+            </View>
+          ) : (
+            upcomingTasksList.map((task) => {
+              const categoryColor = getCategoryColor(task.category);
+
+              return (
+                <TouchableOpacity
+                  key={task.id}
+                  style={styles.taskCard}
+                  activeOpacity={0.7}
+                  onPress={() => handleViewTask(task.id)}
                 >
-                  {filter}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <View
+                    style={[
+                      styles.taskIconContainer,
+                      { backgroundColor: `${categoryColor}15` },
+                    ]}
+                  >
+                    {getCategoryIcon(task.category, categoryColor, 20)}
+                  </View>
+
+                  <View style={styles.taskContent}>
+                    <Text style={styles.taskTitle} numberOfLines={1}>
+                      {task.title}
+                    </Text>
+                    <View style={styles.taskMeta}>
+                      <View
+                        style={[
+                          styles.categoryBadge,
+                          { backgroundColor: `${categoryColor}20` },
+                        ]}
+                      >
+                        <Text
+                          style={[styles.categoryText, { color: categoryColor }]}
+                        >
+                          {task.category}
+                        </Text>
+                      </View>
+                      <Text style={styles.taskTime}>
+                        {formatTimeRemaining(task.deadline)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+
+          <View style={styles.quickActionsGrid}>
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              activeOpacity={0.7}
+              onPress={() => handleCreateTask('tugas')}
+            >
+              <LinearGradient
+                colors={['#8B5CF6', '#7C3AED']}
+                style={styles.quickActionGradient}
+              >
+                <Ionicons name="add" size={24} color="#fff" />
+                <Text style={styles.quickActionText}>New Task</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              activeOpacity={0.7}
+              onPress={() => handleCreateTask('jadwal')}
+            >
+              <LinearGradient
+                colors={['#3B82F6', '#2563EB']}
+                style={styles.quickActionGradient}
+              >
+                <Ionicons name="calendar" size={24} color="#fff" />
+                <Text style={styles.quickActionText}>Schedule</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              activeOpacity={0.7}
+              onPress={() => handleCreateTask('kegiatan')}
+            >
+              <LinearGradient
+                colors={['#10B981', '#059669']}
+                style={styles.quickActionGradient}
+              >
+                <Ionicons name="pulse" size={24} color="#fff" />
+                <Text style={styles.quickActionText}>Activity</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              activeOpacity={0.7}
+              onPress={handleViewAllTasks}
+            >
+              <LinearGradient
+                colors={['#F59E0B', '#D97706']}
+                style={styles.quickActionGradient}
+              >
+                <Ionicons name="flag" size={24} color="#fff" />
+                <Text style={styles.quickActionText}>All Tasks</Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Content Section */}
-        <View className="px-5 py-6">
-          {activeFilter === "All" && renderAllContent()}
-          {activeFilter === "Task" && renderTaskContent()}
-          {activeFilter === "Pomodoro" && renderPomodoroContent()}
-        </View>
+        {/* Bottom Spacing */}
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Floating Action Button */}
+      <TouchableOpacity
+        style={styles.fab}
+        activeOpacity={0.8}
+        onPress={() => handleCreateTask()}
+      >
+        <LinearGradient
+          colors={['#667eea', '#764ba2']}
+          style={styles.fabGradient}
+        >
+          <Ionicons name="add" size={28} color="#fff" />
+        </LinearGradient>
+      </TouchableOpacity>
     </View>
   );
-}
+};
+
+export default HomeScreen;
