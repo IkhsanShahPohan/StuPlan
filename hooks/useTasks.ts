@@ -1,399 +1,736 @@
-import { useEffect, useState } from "react";
-import { subtasks, tasks } from "@/db/schema";
-import { and, desc, eq, gte, like, lte, asc } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/expo-sqlite";
-import { useSQLiteContext } from "expo-sqlite";
-import { useAuth } from "@/lib/AuthContext";
-import { 
-  scheduleTaskNotification, 
-  cancelTaskNotifications 
+import {
+  NewSubtask,
+  NewTask,
+  Subtask,
+  subtasks as subtasksTable,
+  Task,
+  tasks as tasksTable,
+} from "@/db/schema";
+import {
+  cancelTaskNotifications,
+  NotificationConfig,
+  scheduleTaskNotifications,
 } from "@/lib/notificationHelper";
+import { desc, eq } from "drizzle-orm";
+import { useCallback, useEffect, useState } from "react";
+import { useDrizzle } from "./useDrizzle";
 
-interface Task {
-  id: number;
-  userId: string;
+// Interface untuk create/update task
+export interface TaskFormData {
   title: string;
-  description: string | null;
-  notes: string | null;
+  description?: string;
+  notes?: string;
   category: "tugas" | "jadwal" | "kegiatan";
-  deadline: string;
-  time: string | null;
-  repeatOption: "none" | "daily" | "weekly" | "monthly" | "yearly";
-  repeatEndDate: string | null;
-  status: "pending" | "in_progress" | "completed";
-  reminderEnabled: number | boolean;
-  reminderDaysBefore: number | null;
-  reminderTime: string | null;
-  reminderFrequency: "once" | "daily" | "every_2_days" | "every_3_days" | "weekly";
-  notificationIds: string | null;
-  createdAt: string | null;
-  updatedAt: string | null;
+  deadline: Date;
+  reminderEnabled: boolean;
+  reminderDaysBefore: number;
+  reminderTime: Date | string; // ISO string atau Date object
+  repeatEnabled?: boolean;
+  repeatOption?: "none" | "daily" | "weekly" | "monthly" | "yearly" | "custom";
+  customInterval?: number;
+  customUnit?: "days" | "weeks" | "months" | "years";
+  endOption?: "never" | "deadline";
+  subtasks?: string[]; // Array of subtask titles
+  status?: "pending" | "in_progress" | "completed";
 }
 
-interface Subtask {
-  id: number;
-  taskId: number;
-  title: string;
-  completed: number | boolean;
-  createdAt: string | null;
+export interface TaskWithSubtasks extends Task {
+  subtasks: Subtask[];
 }
 
-export function useTasks() {
-  const [allTasks, setAllTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
-  const x = useSQLiteContext();
-  const db = drizzle(x);
-
-  const fetchTasks = async () => {
-    if (!user) {
-      setAllTasks([]);
-      setLoading(false);
-      return;
-    }
-
+export const useTask = (userId: string) => {
+  const [tasks, setTasks] = useState<TaskWithSubtasks[]>([]); // Ganti nama dari allTasks ke tasks
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const db = useDrizzle();
+  /**
+   * Fetch all tasks untuk user
+   */
+  const fetchTasks = useCallback(async () => {
     try {
-      const result = await db
+      setLoading(true);
+      setError(null);
+
+      // Fetch tasks
+      const tasksData = await db
         .select()
-        .from(tasks)
-        .where(eq(tasks.userId, user.id))
-        .orderBy(desc(tasks.createdAt));
-      setAllTasks(result as Task[]);
-    } catch (error) {
-      console.error("Error fetching tasks:", error);
+        .from(tasksTable)
+        .where(eq(tasksTable.userId, userId))
+        .orderBy(desc(tasksTable.createdAt));
+
+      // Fetch subtasks untuk semua tasks
+      const tasksWithSubtasks: TaskWithSubtasks[] = await Promise.all(
+        tasksData.map(async (task) => {
+          const taskSubtasks = await db
+            .select()
+            .from(subtasksTable)
+            .where(eq(subtasksTable.taskId, task.id));
+
+          return {
+            ...task,
+            subtasks: taskSubtasks,
+          };
+        })
+      );
+
+      setTasks(tasksWithSubtasks);
+    } catch (err) {
+      console.error("Error fetching tasks:", err);
+      setError("Gagal memuat tugas");
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
+  /**
+   * Refresh tasks - alias untuk fetchTasks (untuk backward compatibility)
+   */
+  const refreshTasks = useCallback(async () => {
+    await fetchTasks();
+  }, [fetchTasks]);
+
+  /**
+   * Fetch tasks on mount
+   */
   useEffect(() => {
     fetchTasks();
-  }, [user]);
+  }, [fetchTasks]);
 
-  const createTask = async (
-    input: {
-      title: string;
-      description?: string;
-      notes?: string;
-      category: "tugas" | "jadwal" | "kegiatan";
-      deadline: string;
-      time?: string;
-      repeatOption?: "none" | "daily" | "weekly" | "monthly" | "yearly";
-      repeatEndDate?: string;
-      reminderEnabled?: boolean;
-      reminderDaysBefore?: number;
-      reminderTime?: string;
-      reminderFrequency?: "once" | "daily" | "every_2_days" | "every_3_days" | "weekly";
+  /**
+   * Search tasks by title or description
+   */
+  const searchTasks = useCallback(
+    (query: string) => {
+      if (!query.trim()) {
+        return tasks;
+      }
+
+      const lowerQuery = query.toLowerCase();
+      return tasks.filter(
+        (task) =>
+          task.title.toLowerCase().includes(lowerQuery) ||
+          task.description?.toLowerCase().includes(lowerQuery)
+      );
     },
-    subtaskTitles: string[] = []
-  ) => {
-    if (!user) throw new Error("User not authenticated");
+    [tasks]
+  );
 
+  /**
+   * Filter tasks by category
+   */
+  const filterByCategory = useCallback(
+    (category: "tugas" | "jadwal" | "kegiatan") => {
+      return tasks.filter((task) => task.category === category);
+    },
+    [tasks]
+  );
+
+  /**
+   * Get tasks by category (alias untuk filterByCategory)
+   */
+  const getTasksByCategory = useCallback(
+    (category: "tugas" | "jadwal" | "kegiatan") => {
+      return filterByCategory(category);
+    },
+    [filterByCategory]
+  );
+
+  /**
+   * Get task by ID
+   */
+  const getTaskById = useCallback(
+    async (taskId: number): Promise<TaskWithSubtasks | null> => {
+      try {
+        const task = await db
+          .select()
+          .from(tasksTable)
+          .where(eq(tasksTable.id, taskId))
+          .limit(1);
+
+        if (task.length === 0) return null;
+
+        const taskSubtasks = await db
+          .select()
+          .from(subtasksTable)
+          .where(eq(subtasksTable.taskId, taskId));
+
+        return {
+          ...task[0],
+          subtasks: taskSubtasks,
+        };
+      } catch (err) {
+        console.error("Error fetching task:", err);
+        return null;
+      }
+    },
+    []
+  );
+
+  /**
+   * Parse reminder time dari Date atau string
+   */
+  const parseReminderTime = (reminderTime: Date | string): string => {
+    let timeDate: Date;
+
+    if (typeof reminderTime === "string") {
+      timeDate = new Date(reminderTime);
+    } else {
+      timeDate = reminderTime;
+    }
+
+    const hours = timeDate.getHours().toString().padStart(2, "0");
+    const minutes = timeDate.getMinutes().toString().padStart(2, "0");
+
+    return `${hours}:${minutes}`;
+  };
+
+  /**
+   * Create new task
+   */
+  const createTask = async (formData: TaskFormData): Promise<Task | null> => {
     try {
-      const [newTask] = await db
-        .insert(tasks)
-        .values({
-          userId: user.id,
-          title: input.title,
-          description: input.description || null,
-          notes: input.notes || null,
-          category: input.category,
-          deadline: input.deadline,
-          time: input.time || null,
-          repeatOption: input.repeatOption || "none",
-          repeatEndDate: input.repeatEndDate || null,
-          status: "pending",
-          reminderEnabled: input.reminderEnabled ? 1 : 0,
-          reminderDaysBefore: input.reminderDaysBefore || 1,
-          reminderTime: input.reminderTime || "09:00",
-          reminderFrequency: input.reminderFrequency || "once",
-          notificationIds: null,
-        })
+      setLoading(true);
+      setError(null);
+
+      // Parse reminder time
+      const reminderTimeString = parseReminderTime(formData.reminderTime);
+
+      // Prepare task data
+      const newTaskData: NewTask = {
+        userId,
+        title: formData.title,
+        description: formData.description || null,
+        notes: formData.notes || null,
+        category: formData.category,
+        deadline: formData.deadline.toISOString(),
+        reminderEnabled: formData.reminderEnabled,
+        reminderDaysBefore: formData.reminderDaysBefore,
+        reminderTime: reminderTimeString,
+        repeatEnabled: formData.repeatEnabled || false,
+        repeatOption: formData.repeatOption || "none",
+        customInterval: formData.customInterval || null,
+        customUnit: formData.customUnit || null,
+        endOption: formData.endOption || "deadline",
+        status: formData.status || "pending",
+        notificationIds: null,
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Insert task
+      const [insertedTask] = await db
+        .insert(tasksTable)
+        .values(newTaskData)
         .returning();
 
-      // Schedule notifications
-      if (input.reminderEnabled) {
-        const notificationIds = await scheduleTaskNotification({
-          id: newTask.id,
-          title: newTask.title,
-          category: newTask.category,
-          deadline: newTask.deadline,
-          time: newTask.time || undefined,
-          repeatOption: newTask.repeatOption as any,
-          repeatEndDate: newTask.repeatEndDate || undefined,
-          reminderEnabled: true,
-          reminderDaysBefore: input.reminderDaysBefore || 1,
-          reminderTime: input.reminderTime || "09:00",
-          reminderFrequency: input.reminderFrequency || "once",
-        });
+      // Create subtasks jika ada (hanya untuk category 'tugas')
+      if (
+        formData.category === "tugas" &&
+        formData.subtasks &&
+        formData.subtasks.length > 0
+      ) {
+        const subtaskData: NewSubtask[] = formData.subtasks.map((title) => ({
+          taskId: insertedTask.id,
+          title,
+          completed: false,
+        }));
 
+        await db.insert(subtasksTable).values(subtaskData);
+      }
+
+      // Schedule notifications
+      if (formData.reminderEnabled) {
+        const notificationConfig: NotificationConfig = {
+          taskId: insertedTask.id,
+          title: formData.title,
+          body: formData.description || `Pengingat untuk ${formData.title}`,
+          category: formData.category,
+          deadline: formData.deadline,
+          reminderEnabled: formData.reminderEnabled,
+          reminderDaysBefore: formData.reminderDaysBefore,
+          reminderTime: reminderTimeString,
+          repeatEnabled: formData.repeatEnabled || false,
+          repeatOption: formData.repeatOption || "none",
+          customInterval: formData.customInterval,
+          customUnit: formData.customUnit,
+          endOption: formData.endOption,
+        };
+
+        const notificationIds =
+          await scheduleTaskNotifications(notificationConfig);
+
+        // Update task dengan notification IDs
         if (notificationIds.length > 0) {
           await db
-            .update(tasks)
-            .set({ notificationIds: JSON.stringify(notificationIds) })
-            .where(eq(tasks.id, newTask.id));
+            .update(tasksTable)
+            .set({
+              notificationIds: JSON.stringify(notificationIds),
+              updatedAt: new Date().toISOString(),
+            })
+            .where(eq(tasksTable.id, insertedTask.id));
+
+          insertedTask.notificationIds = JSON.stringify(notificationIds);
         }
       }
 
-      // Subtasks hanya untuk category 'tugas'
-      if (input.category === "tugas" && subtaskTitles.length > 0) {
-        await db.insert(subtasks).values(
-          subtaskTitles.map((title) => ({
-            taskId: newTask.id,
-            title,
-            completed: 0,
-          }))
-        );
-      }
-      console.log("Notification addeed successfully!")
+      // Refresh tasks
       await fetchTasks();
-    } catch (error) {
-      console.error("Error creating task:", error);
-      throw error;
-    }
-  };
 
-  const updateTask = async (id: number, input: Partial<Task>) => {
-    try {
-      await db
-        .update(tasks)
-        .set({ ...input, updatedAt: new Date().toISOString() })
-        .where(eq(tasks.id, id));
-      await fetchTasks();
-    } catch (error) {
-      console.error("Error updating task:", error);
-      throw error;
-    }
-  };
-
-  const deleteTask = async (id: number) => {
-    try {
-      // Get task to cancel notifications
-      const taskToDelete = await db
-        .select()
-        .from(tasks)
-        .where(eq(tasks.id, id))
-        .limit(1);
-
-      if (taskToDelete.length > 0 && taskToDelete[0].notificationIds) {
-        await cancelTaskNotifications(taskToDelete[0].notificationIds);
-      }
-
-      await db.delete(tasks).where(eq(tasks.id, id));
-      await fetchTasks();
-    } catch (error) {
-      console.error("Error deleting task:", error);
-      throw error;
-    }
-  };
-
-  const searchTasks = async (
-    query: string,
-    startDate?: Date,
-    endDate?: Date,
-    category?: "tugas" | "jadwal" | "kegiatan" | "all"
-  ) => {
-    if (!user) return;
-
-    try {
-      const conditions: any[] = [eq(tasks.userId, user.id)];
-
-      if (query.trim()) {
-        conditions.push(like(tasks.title, `%${query}%`));
-      }
-
-      if (startDate && endDate) {
-        conditions.push(
-          and(
-            gte(tasks.deadline, startDate.toISOString()),
-            lte(tasks.deadline, endDate.toISOString())
-          )
-        );
-      }
-
-      if (category && category !== "all") {
-        conditions.push(eq(tasks.category, category));
-      }
-
-      const result = await db
-        .select()
-        .from(tasks)
-        .where(and(...conditions))
-        .orderBy(desc(tasks.createdAt));
-
-      setAllTasks(result as Task[]);
-    } catch (error) {
-      console.error("Error searching tasks:", error);
-    }
-  };
-
-  const filterByCategory = async (category: "tugas" | "jadwal" | "kegiatan" | "all") => {
-    if (!user) return;
-
-    try {
-      if (category === "all") {
-        await fetchTasks();
-        return;
-      }
-
-      const result = await db
-        .select()
-        .from(tasks)
-        .where(and(eq(tasks.userId, user.id), eq(tasks.category, category)))
-        .orderBy(desc(tasks.createdAt));
-
-      setAllTasks(result as Task[]);
-    } catch (error) {
-      console.error("Error filtering tasks:", error);
-    }
-  };
-
-  const sortByDeadline = async (order: "nearest" | "farthest" = "nearest") => {
-    if (!user) return;
-
-    try {
-      const result = await db
-        .select()
-        .from(tasks)
-        .where(eq(tasks.userId, user.id))
-        .orderBy(order === "nearest" ? asc(tasks.deadline) : desc(tasks.deadline));
-
-      setAllTasks(result as Task[]);
-    } catch (error) {
-      console.error("Error sorting tasks:", error);
-    }
-  };
-
-  const filterByStatus = async (status: "completed" | "pending" | "overdue" | "all") => {
-    if (!user) return;
-
-    try {
-      const now = new Date().toISOString();
-      let result: Task[];
-
-      switch (status) {
-        case "completed":
-          result = await db
-            .select()
-            .from(tasks)
-            .where(and(eq(tasks.userId, user.id), eq(tasks.status, "completed")))
-            .orderBy(desc(tasks.createdAt)) as Task[];
-          break;
-        case "pending":
-          result = await db
-            .select()
-            .from(tasks)
-            .where(
-              and(
-                eq(tasks.userId, user.id),
-                eq(tasks.status, "pending"),
-                gte(tasks.deadline, now)
-              )
-            )
-            .orderBy(asc(tasks.deadline)) as Task[];
-          break;
-        case "overdue":
-          result = await db
-            .select()
-            .from(tasks)
-            .where(
-              and(
-                eq(tasks.userId, user.id),
-                lte(tasks.deadline, now)
-              )
-            )
-            .orderBy(desc(tasks.deadline)) as Task[];
-          break;
-        default:
-          await fetchTasks();
-          return;
-      }
-
-      setAllTasks(result);
-    } catch (error) {
-      console.error("Error filtering by status:", error);
-    }
-  };
-
-  return {
-    tasks: allTasks,
-    loading,
-    createTask,
-    updateTask,
-    deleteTask,
-    refreshTasks: fetchTasks,
-    searchTasks,
-    filterByCategory,
-    sortByDeadline,
-    filterByStatus,
-  };
-}
-
-export function useSubtasks(taskId: number) {
-  const [taskSubtasks, setTaskSubtasks] = useState<Subtask[]>([]);
-  const [loading, setLoading] = useState(true);
-  const x = useSQLiteContext();
-  const db = drizzle(x);
-
-  const fetchSubtasks = async () => {
-    if (!taskId) return;
-    try {
-      const result = await db
-        .select()
-        .from(subtasks)
-        .where(eq(subtasks.taskId, taskId));
-      setTaskSubtasks(result as Subtask[]);
-    } catch (error) {
-      console.error("Error fetching subtasks:", error);
+      console.log("✅ Task created successfully:", insertedTask.id);
+      return insertedTask;
+    } catch (err) {
+      console.error("Error creating task:", err);
+      setError("Gagal membuat tugas");
+      return null;
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchSubtasks();
-  }, [taskId]);
-
-  const createSubtask = async (title: string) => {
+  /**
+   * Update task
+   */
+  const updateTask = async (
+    taskId: number,
+    formData: Partial<TaskFormData>
+  ): Promise<boolean> => {
     try {
-      await db.insert(subtasks).values({
-        taskId,
-        title,
-        completed: 0,
+      setLoading(true);
+      setError(null);
+
+      // Get existing task
+      const existingTask = await getTaskById(taskId);
+      if (!existingTask) {
+        setError("Task tidak ditemukan");
+        return false;
+      }
+
+      // Cancel old notifications jika ada
+      if (existingTask.notificationIds) {
+        const oldIds = JSON.parse(existingTask.notificationIds);
+        await cancelTaskNotifications(oldIds);
+      }
+
+      // Parse reminder time jika ada
+      const reminderTimeString = formData.reminderTime
+        ? parseReminderTime(formData.reminderTime)
+        : existingTask.reminderTime;
+
+      // Prepare update data
+      const updateData: Partial<NewTask> = {
+        title: formData.title ?? existingTask.title,
+        description: formData.description ?? existingTask.description,
+        notes: formData.notes ?? existingTask.notes,
+        category: formData.category ?? existingTask.category,
+        deadline: formData.deadline
+          ? formData.deadline.toISOString()
+          : existingTask.deadline,
+        reminderEnabled:
+          formData.reminderEnabled ?? existingTask.reminderEnabled,
+        reminderDaysBefore:
+          formData.reminderDaysBefore ?? existingTask.reminderDaysBefore,
+        reminderTime: reminderTimeString,
+        repeatEnabled: formData.repeatEnabled ?? existingTask.repeatEnabled,
+        repeatOption: formData.repeatOption ?? existingTask.repeatOption,
+        customInterval: formData.customInterval ?? existingTask.customInterval,
+        customUnit: formData.customUnit ?? existingTask.customUnit,
+        endOption: formData.endOption ?? existingTask.endOption,
+        status: formData.status ?? existingTask.status,
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Update task
+      await db
+        .update(tasksTable)
+        .set(updateData)
+        .where(eq(tasksTable.id, taskId));
+
+      // Update subtasks jika ada
+      if (formData.subtasks && formData.category === "tugas") {
+        // Delete old subtasks
+        await db.delete(subtasksTable).where(eq(subtasksTable.taskId, taskId));
+
+        // Create new subtasks
+        if (formData.subtasks.length > 0) {
+          const subtaskData: NewSubtask[] = formData.subtasks.map((title) => ({
+            taskId,
+            title,
+            completed: false,
+          }));
+
+          await db.insert(subtasksTable).values(subtaskData);
+        }
+      }
+
+      // Schedule new notifications jika enabled
+      if (updateData.reminderEnabled) {
+        const notificationConfig: NotificationConfig = {
+          taskId,
+          title: updateData.title!,
+          body: updateData.description || `Pengingat untuk ${updateData.title}`,
+          category: updateData.category!,
+          deadline: new Date(updateData.deadline!),
+          reminderEnabled: updateData.reminderEnabled,
+          reminderDaysBefore: updateData.reminderDaysBefore!,
+          reminderTime: reminderTimeString!,
+          repeatEnabled: updateData.repeatEnabled!,
+          repeatOption: updateData.repeatOption!,
+          customInterval: updateData.customInterval ?? undefined,
+          customUnit: updateData.customUnit ?? undefined,
+          endOption: updateData.endOption,
+        };
+
+        const notificationIds =
+          await scheduleTaskNotifications(notificationConfig);
+
+        // Update notification IDs
+        if (notificationIds.length > 0) {
+          await db
+            .update(tasksTable)
+            .set({
+              notificationIds: JSON.stringify(notificationIds),
+            })
+            .where(eq(tasksTable.id, taskId));
+        }
+      }
+
+      // Refresh tasks
+      await fetchTasks();
+
+      console.log("✅ Task updated successfully:", taskId);
+      return true;
+    } catch (err) {
+      console.error("Error updating task:", err);
+      setError("Gagal mengupdate tugas");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Delete task
+   */
+  const deleteTask = async (taskId: number): Promise<boolean> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get task untuk cancel notifications
+      const task = await getTaskById(taskId);
+      if (!task) {
+        setError("Task tidak ditemukan");
+        return false;
+      }
+
+      // Cancel notifications
+      if (task.notificationIds) {
+        const notificationIds = JSON.parse(task.notificationIds);
+        await cancelTaskNotifications(notificationIds);
+      }
+
+      // Delete task (subtasks akan terhapus otomatis karena cascade)
+      await db.delete(tasksTable).where(eq(tasksTable.id, taskId));
+
+      // Refresh tasks
+      await fetchTasks();
+
+      console.log("✅ Task deleted successfully:", taskId);
+      return true;
+    } catch (err) {
+      console.error("Error deleting task:", err);
+      setError("Gagal menghapus tugas");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Toggle task status
+   */
+  const toggleTaskStatus = async (taskId: number): Promise<boolean> => {
+    try {
+      const task = await getTaskById(taskId);
+      if (!task) return false;
+
+      const newStatus =
+        task.status === "completed"
+          ? "pending"
+          : task.status === "pending"
+            ? "in_progress"
+            : "completed";
+
+      await db
+        .update(tasksTable)
+        .set({
+          status: newStatus,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(tasksTable.id, taskId));
+
+      await fetchTasks();
+      return true;
+    } catch (err) {
+      console.error("Error toggling task status:", err);
+      return false;
+    }
+  };
+
+  /**
+   * Toggle subtask completion
+   */
+  const toggleSubtaskCompletion = async (
+    subtaskId: number
+  ): Promise<boolean> => {
+    try {
+      const [subtask] = await db
+        .select()
+        .from(subtasksTable)
+        .where(eq(subtasksTable.id, subtaskId))
+        .limit(1);
+
+      if (!subtask) return false;
+
+      await db
+        .update(subtasksTable)
+        .set({ completed: !subtask.completed })
+        .where(eq(subtasksTable.id, subtaskId));
+
+      await fetchTasks();
+      return true;
+    } catch (err) {
+      console.error("Error toggling subtask:", err);
+      return false;
+    }
+  };
+
+  /**
+   * Get upcoming tasks (deadline dalam 7 hari)
+   */
+  const getUpcomingTasks = useCallback(() => {
+    const now = new Date();
+    const sevenDaysLater = new Date(now);
+    sevenDaysLater.setDate(now.getDate() + 7);
+
+    return tasks.filter((task) => {
+      const deadline = new Date(task.deadline);
+      return deadline >= now && deadline <= sevenDaysLater;
+    });
+  }, [tasks]);
+
+  /**
+   * Get overdue tasks
+   */
+  const getOverdueTasks = useCallback(() => {
+    const now = new Date();
+    return tasks.filter((task) => {
+      const deadline = new Date(task.deadline);
+      return deadline < now && task.status !== "completed";
+    });
+  }, [tasks]);
+
+  /**
+   * Get completed tasks
+   */
+  const getCompletedTasks = useCallback(() => {
+    return tasks.filter((task) => task.status === "completed");
+  }, [tasks]);
+
+  /**
+   * Update task status (untuk konfirmasi task selesai)
+   */
+  const updateTaskStatus = async (
+    taskId: number,
+    status: "pending" | "in_progress" | "completed"
+  ): Promise<boolean> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get task untuk cancel notifications jika status = completed
+      if (status === "completed") {
+        const task = await getTaskById(taskId);
+        if (task && task.notificationIds) {
+          const notificationIds = JSON.parse(task.notificationIds);
+          await cancelTaskNotifications(notificationIds);
+        }
+      }
+
+      // Update status
+      await db
+        .update(tasksTable)
+        .set({
+          status,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(tasksTable.id, taskId));
+
+      // Refresh tasks
+      await fetchTasks();
+
+      console.log("✅ Task status updated:", taskId, status);
+      return true;
+    } catch (err) {
+      console.error("Error updating task status:", err);
+      setError("Gagal mengupdate status");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Cancel task notifications by task ID
+   * (untuk dipanggil dari component)
+   */
+  const cancelTaskNotificationsByTaskId = async (
+    taskId: number
+  ): Promise<boolean> => {
+    try {
+      const task = await getTaskById(taskId);
+      if (!task) {
+        console.error("Task not found:", taskId);
+        return false;
+      }
+
+      if (task.notificationIds) {
+        const notificationIds = JSON.parse(task.notificationIds);
+        await cancelTaskNotifications(notificationIds);
+
+        // Update task untuk clear notification IDs
+        await db
+          .update(tasksTable)
+          .set({
+            notificationIds: null,
+            updatedAt: new Date().toISOString(),
+          })
+          .where(eq(tasksTable.id, taskId));
+
+        console.log("✅ Notifications cancelled for task:", taskId);
+        return true;
+      }
+
+      return true;
+    } catch (err) {
+      console.error("Error cancelling notifications:", err);
+      return false;
+    }
+  };
+
+  /**
+   * Get today's tasks
+   */
+  const getTodayTasks = useCallback(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    return tasks.filter((task) => {
+      const deadline = new Date(task.deadline);
+      deadline.setHours(0, 0, 0, 0);
+      return deadline >= today && deadline < tomorrow;
+    });
+  }, [tasks]);
+
+  /**
+   * Filter by status
+   */
+  const filterByStatus = useCallback(
+    (status: "pending" | "in_progress" | "completed" | "all") => {
+      if (status === "all") return tasks;
+      return tasks.filter((task) => task.status === status);
+    },
+    [tasks]
+  );
+
+  /**
+   * Filter by date range
+   */
+  const filterByDateRange = useCallback(
+    (startDate: Date | null, endDate: Date | null) => {
+      if (!startDate && !endDate) return tasks;
+
+      return tasks.filter((task) => {
+        const taskDate = new Date(task.deadline);
+        taskDate.setHours(0, 0, 0, 0);
+
+        if (startDate && endDate) {
+          const start = new Date(startDate);
+          start.setHours(0, 0, 0, 0);
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          return taskDate >= start && taskDate <= end;
+        } else if (startDate) {
+          const start = new Date(startDate);
+          start.setHours(0, 0, 0, 0);
+          return taskDate >= start;
+        } else if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          return taskDate <= end;
+        }
+        return true;
       });
-      await fetchSubtasks();
-    } catch (error) {
-      console.error("Error creating subtask:", error);
-      throw error;
-    }
-  };
+    },
+    [tasks]
+  );
 
-  const toggleSubtask = async (id: number, completed: boolean) => {
-    try {
-      await db.update(subtasks).set({ completed }).where(eq(subtasks.id, id));
-      await fetchSubtasks();
-    } catch (error) {
-      console.error("Error toggling subtask:", error);
-      throw error;
-    }
-  };
+  // return {
+  //   // Data
+  //   tasks, // Export sebagai tasks (bukan allTasks)
+  //   loading,
+  //   error,
 
-  const deleteSubtask = async (id: number) => {
-    try {
-      await db.delete(subtasks).where(eq(subtasks.id, id));
-      await fetchSubtasks();
-    } catch (error) {
-      console.error("Error deleting subtask:", error);
-      throw error;
-    }
-  };
+  //   // CRUD operations
+  //   createTask,
+  //   updateTask,
+  //   deleteTask,
+  //   fetchTasks,
+  //   refreshTasks, // Alias untuk fetchTasks
+  //   getTaskById,
 
+  //   // Search & Filters
+  //   searchTasks,
+  //   filterByCategory,
+  //   getTasksByCategory,
+  //   getUpcomingTasks,
+  //   getOverdueTasks,
+  //   getCompletedTasks,
+
+  //   // Actions
+  //   toggleTaskStatus,
+  //   toggleSubtaskCompletion,
+  // };
   return {
-    subtasks: taskSubtasks,
+    // Data
+    tasks,
     loading,
-    createSubtask,
-    toggleSubtask,
-    deleteSubtask,
-    refreshSubtasks: fetchSubtasks,
+    error,
+
+    // CRUD operations
+    createTask,
+    updateTask,
+    updateTaskStatus, // ✅ TAMBAHKAN INI
+    deleteTask,
+    fetchTasks,
+    refreshTasks,
+    getTaskById,
+
+    // Search & Filters
+    searchTasks,
+    filterByCategory,
+    filterByStatus, // ✅ TAMBAHKAN INI
+    filterByDateRange, // ✅ TAMBAHKAN INI
+    getTasksByCategory,
+    getUpcomingTasks,
+    getOverdueTasks,
+    getTodayTasks, // ✅ TAMBAHKAN INI
+    getCompletedTasks,
+
+    // Actions
+    toggleTaskStatus,
+    toggleSubtaskCompletion,
+    cancelTaskNotifications: cancelTaskNotificationsByTaskId, // ✅ TAMBAHKAN INI (rename untuk clarity)
   };
-}
+};

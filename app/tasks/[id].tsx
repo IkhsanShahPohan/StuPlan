@@ -1,1791 +1,57 @@
-// import { tasks } from "@/db/schema";
-// import { Ionicons } from "@expo/vector-icons";
-// import { eq } from "drizzle-orm";
-// import { drizzle } from "drizzle-orm/expo-sqlite";
-// import { useSQLiteContext } from "expo-sqlite";
-// import React, { useEffect, useState } from "react";
-// import {
-//   Alert,
-//   Modal,
-//   Platform,
-//   ScrollView,
-//   StyleSheet,
-//   Text,
-//   TextInput,
-//   TouchableOpacity,
-//   View,
-// } from "react-native";
-// import { SafeAreaView } from "react-native-safe-area-context";
-// import { useSubtasks } from "../../hooks/useTasks";
-// import { useLocalSearchParams } from "expo-router";
-
-// export default function TaskDetailModal({
-//   visible,
-//   task,
-//   onClose,
-//   onUpdate,
-// }: any) {
-//   const { id } = useLocalSearchParams();
-//   const [newSubtask, setNewSubtask] = useState("");
-//   const [localTask, setLocalTask] = useState(task);
-//   const [showNotesModal, setShowNotesModal] = useState(false);
-//   const [notesWordCount, setNotesWordCount] = useState(0);
-//   const {
-//     subtasks,
-//     createSubtask,
-//     toggleSubtask,
-//     deleteSubtask,
-//     refreshSubtasks,
-//   } = useSubtasks(task?.id || 0);
-//   const x = useSQLiteContext(); // ← kamu tetap pakai hook
-//   const db = drizzle(x);
-
-//   // Update word count
-//   useEffect(() => {
-//     if (localTask.notes) {
-//       const words = localTask.notes
-//         .trim()
-//         .split(/\s+/)
-//         .filter((w: string) => w.length > 0);
-//       setNotesWordCount(words.length);
-//     }
-//   }, [localTask.notes]);
-
-//   // Auto-update status based on subtasks
-//   useEffect(() => {
-//     const updateStatus = async () => {
-//       if (subtasks.length === 0) return;
-
-//       const completedCount = subtasks.filter((s: any) => s.completed).length;
-//       let newStatus = "pending";
-
-//       if (completedCount === subtasks.length) {
-//         newStatus = "completed";
-//       } else if (completedCount > 0) {
-//         newStatus = "in_progress";
-//       }
-
-//       if (newStatus !== localTask.status) {
-//         try {
-//           await db
-//             .update(tasks)
-//             .set({ status: newStatus, updatedAt: new Date().toISOString() })
-//             .where(eq(tasks.id, task.id));
-
-//           setLocalTask({ ...localTask, status: newStatus });
-//           onUpdate();
-//         } catch (error) {
-//           console.error("Error updating status:", error);
-//         }
-//       }
-//     };
-
-//     updateStatus();
-//   }, [subtasks]);
-
-//   const handleAddSubtask = async () => {
-//     if (!newSubtask.trim()) {
-//       Alert.alert("Error", "Subtask tidak boleh kosong");
-//       return;
-//     }
-//     try {
-//       await createSubtask(newSubtask.trim());
-//       setNewSubtask("");
-//       await refreshSubtasks();
-//     } catch {
-//       Alert.alert("Error", "Gagal menambah subtask");
-//     }
-//   };
-
-//   const handleToggleSubtask = async (id: number, completed: boolean) => {
-//     try {
-//       await toggleSubtask(id, completed);
-//       await refreshSubtasks();
-//     } catch {
-//       Alert.alert("Error", "Gagal mengubah status");
-//     }
-//   };
-
-//   const handleDeleteSubtask = async (id: number) => {
-//     try {
-//       await deleteSubtask(id);
-//       await refreshSubtasks();
-//     } catch {
-//       Alert.alert("Error", "Gagal menghapus subtask");
-//     }
-//   };
-
-//   const completedCount = subtasks.filter((s: any) => s.completed).length;
-//   const progress =
-//     subtasks.length > 0 ? (completedCount / subtasks.length) * 100 : 0;
-
-//   const statusConfig = {
-//     pending: { label: "Pending", color: "#FF9500", icon: "time-outline" },
-//     in_progress: {
-//       label: "Berjalan",
-//       color: "#007AFF",
-//       icon: "play-circle-outline",
-//     },
-//     completed: {
-//       label: "Selesai",
-//       color: "#34C759",
-//       icon: "checkmark-circle-outline",
-//     },
-//   };
-
-//   const currentStatus =
-//     statusConfig[localTask.status as keyof typeof statusConfig];
-
-//   return (
-//     <Modal
-//       visible={visible}
-//       animationType="slide"
-//       presentationStyle="pageSheet"
-//       onRequestClose={onClose}
-//     >
-//       <SafeAreaView style={styles.modalSafe}>
-//         <View style={styles.modalHeader}>
-//           <TouchableOpacity onPress={onClose}>
-//             <Ionicons name="chevron-back" size={28} color="#007AFF" />
-//           </TouchableOpacity>
-//           <Text style={styles.modalTitle}>Detail Tugas</Text>
-//           <View style={{ width: 28 }} />
-//         </View>
-
-//         <ScrollView
-//           style={styles.detailBody}
-//           showsVerticalScrollIndicator={false}
-//         >
-//           {/* Status Badge */}
-//           <View
-//             style={[
-//               styles.statusBadge,
-//               { backgroundColor: currentStatus.color + "20" },
-//             ]}
-//           >
-//             <Ionicons
-//               name={currentStatus.icon as any}
-//               size={20}
-//               color={currentStatus.color}
-//             />
-//             <Text
-//               style={[styles.statusBadgeText, { color: currentStatus.color }]}
-//             >
-//               {currentStatus.label}
-//             </Text>
-//           </View>
-
-//           {/* Title */}
-//           <Text style={styles.detailTitle}>{localTask.title}</Text>
-
-//           {/* Description */}
-//           {localTask.description && (
-//             <View style={styles.detailSection}>
-//               <Text style={styles.detailSectionTitle}>DESKRIPSI</Text>
-//               <Text style={styles.detailText}>{localTask.description}</Text>
-//             </View>
-//           )}
-
-//           {/* Notes */}
-//           {localTask.notes && (
-//             <View style={styles.detailSection}>
-//               <View style={styles.detailSectionHeader}>
-//                 <Text style={styles.detailSectionTitle}>CATATAN</Text>
-//                 <TouchableOpacity onPress={() => setShowNotesModal(true)}>
-//                   <Ionicons name="pencil" size={18} color="#007AFF" />
-//                 </TouchableOpacity>
-//               </View>
-//               <TouchableOpacity
-//                 style={styles.notesDetailCard}
-//                 onPress={() => setShowNotesModal(true)}
-//                 activeOpacity={0.7}
-//               >
-//                 <Text style={styles.notesDetailText}>{localTask.notes}</Text>
-//                 <View style={styles.notesDetailFooter}>
-//                   <Text style={styles.notesDetailMeta}>
-//                     {notesWordCount} kata
-//                   </Text>
-//                   <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
-//                 </View>
-//               </TouchableOpacity>
-//             </View>
-//           )}
-
-//           {/* Notes Editor Modal in Detail */}
-//           <Modal
-//             visible={showNotesModal}
-//             animationType="slide"
-//             presentationStyle="fullScreen"
-//             onRequestClose={() => setShowNotesModal(false)}
-//           >
-//             <SafeAreaView style={styles.notesEditorContainer}>
-//               <View style={styles.notesEditorHeader}>
-//                 <TouchableOpacity
-//                   style={styles.notesEditorBackBtn}
-//                   onPress={() => setShowNotesModal(false)}
-//                 >
-//                   <Ionicons name="chevron-back" size={28} color="#007AFF" />
-//                   <Text style={styles.notesEditorBackText}>Kembali</Text>
-//                 </TouchableOpacity>
-//                 <View style={styles.notesEditorInfo}>
-//                   <Text style={styles.notesEditorWordCount}>
-//                     {notesWordCount} kata
-//                   </Text>
-//                 </View>
-//               </View>
-
-//               <ScrollView
-//                 style={styles.notesEditorBody}
-//                 keyboardShouldPersistTaps="handled"
-//               >
-//                 <TextInput
-//                   style={styles.notesEditorInput}
-//                   value={localTask.notes || ""}
-//                   onChangeText={(text) => {
-//                     setLocalTask({ ...localTask, notes: text });
-//                     // Save to database
-//                     db.update(tasks)
-//                       .set({ notes: text })
-//                       .where(eq(tasks.id, task.id))
-//                       .then(() => onUpdate());
-//                   }}
-//                   placeholder="Mulai menulis catatan Anda..."
-//                   placeholderTextColor="#C7C7CC"
-//                   multiline
-//                   autoFocus
-//                   textAlignVertical="top"
-//                 />
-//               </ScrollView>
-
-//               <View style={styles.notesEditorToolbar}>
-//                 <TouchableOpacity
-//                   style={styles.notesToolbarBtn}
-//                   onPress={() => {
-//                     setLocalTask({ ...localTask, notes: "" });
-//                     db.update(tasks)
-//                       .set({ notes: null })
-//                       .where(eq(tasks.id, task.id))
-//                       .then(() => onUpdate());
-//                   }}
-//                 >
-//                   <Ionicons name="trash-outline" size={24} color="#FF3B30" />
-//                 </TouchableOpacity>
-//                 <View style={styles.notesToolbarDivider} />
-//                 <Text style={styles.notesToolbarDate}>
-//                   {new Date().toLocaleString("id-ID", {
-//                     day: "numeric",
-//                     month: "long",
-//                     year: "numeric",
-//                     hour: "2-digit",
-//                     minute: "2-digit",
-//                   })}
-//                 </Text>
-//               </View>
-//             </SafeAreaView>
-//           </Modal>
-
-//           {/* Deadline */}
-//           <View style={styles.detailSection}>
-//             <Text style={styles.detailSectionTitle}>DEADLINE</Text>
-//             <View style={styles.detailInfoRow}>
-//               <Ionicons name="calendar-outline" size={20} color="#007AFF" />
-//               <Text style={styles.detailInfoText}>
-//                 {new Date(localTask.deadline).toLocaleDateString("id-ID", {
-//                   weekday: "long",
-//                   day: "numeric",
-//                   month: "long",
-//                   year: "numeric",
-//                 })}
-//               </Text>
-//             </View>
-//           </View>
-
-//           {/* Subtasks */}
-//           <View style={styles.detailSection}>
-//             <View style={styles.subtaskHeader}>
-//               <Text style={styles.detailSectionTitle}>SUBTASK</Text>
-//               {subtasks.length > 0 && (
-//                 <View style={styles.progressBadge}>
-//                   <Text style={styles.progressText}>
-//                     {completedCount}/{subtasks.length}
-//                   </Text>
-//                   <View style={styles.progressBarContainer}>
-//                     <View
-//                       style={[styles.progressBar, { width: `${progress}%` }]}
-//                     />
-//                   </View>
-//                 </View>
-//               )}
-//             </View>
-
-//             {/* Add Subtask */}
-//             <View style={styles.addSubtaskRow}>
-//               <TextInput
-//                 style={styles.addSubtaskInput}
-//                 value={newSubtask}
-//                 onChangeText={setNewSubtask}
-//                 placeholder="Tambah subtask baru..."
-//                 placeholderTextColor="#C7C7CC"
-//                 onSubmitEditing={handleAddSubtask}
-//                 returnKeyType="done"
-//               />
-//               <TouchableOpacity
-//                 style={styles.addSubtaskIconBtn}
-//                 onPress={handleAddSubtask}
-//               >
-//                 <Ionicons name="add-circle" size={32} color="#007AFF" />
-//               </TouchableOpacity>
-//             </View>
-
-//             {/* Subtask List */}
-//             {subtasks.map((subtask: any) => (
-//               <View key={subtask.id} style={styles.subtaskItem}>
-//                 <TouchableOpacity
-//                   style={styles.subtaskCheckbox}
-//                   onPress={() =>
-//                     handleToggleSubtask(subtask.id, subtask.completed ? 0 : 1)
-//                   }
-//                   activeOpacity={0.7}
-//                 >
-//                   <Ionicons
-//                     name={
-//                       subtask.completed ? "checkmark-circle" : "ellipse-outline"
-//                     }
-//                     size={24}
-//                     color={subtask.completed ? "#34C759" : "#C7C7CC"}
-//                   />
-//                 </TouchableOpacity>
-//                 <Text
-//                   style={[
-//                     styles.subtaskText,
-//                     subtask.completed && styles.subtaskCompleted,
-//                   ]}
-//                 >
-//                   {subtask.title}
-//                 </Text>
-//                 <TouchableOpacity
-//                   onPress={() => handleDeleteSubtask(subtask.id)}
-//                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-//                 >
-//                   <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-//                 </TouchableOpacity>
-//               </View>
-//             ))}
-
-//             {subtasks.length === 0 && (
-//               <View style={styles.emptySubtasks}>
-//                 <Ionicons name="list-outline" size={48} color="#C7C7CC" />
-//                 <Text style={styles.emptySubtasksText}>Belum ada subtask</Text>
-//               </View>
-//             )}
-//           </View>
-
-//           <View style={{ height: 40 }} />
-//         </ScrollView>
-//       </SafeAreaView>
-//     </Modal>
-//   );
-// }
-// const styles = StyleSheet.create({
-//   // Loading
-//   loadingContainer: {
-//     flex: 1,
-//     justifyContent: "center",
-//     alignItems: "center",
-//     backgroundColor: "#F2F2F7",
-//   },
-//   loadingText: {
-//     marginTop: 16,
-//     fontSize: 16,
-//     color: "#8E8E93",
-//     fontWeight: "500",
-//   },
-
-//   // Container
-//   container: {
-//     flex: 1,
-//     backgroundColor: "#F2F2F7",
-//   },
-
-//   // Header
-//   header: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     paddingHorizontal: 20,
-//     paddingTop: 12,
-//     paddingBottom: 16,
-//     backgroundColor: "#FFFFFF",
-//   },
-//   headerTitle: {
-//     fontSize: 34,
-//     fontWeight: "700",
-//     color: "#000000",
-//   },
-//   headerSubtitle: {
-//     fontSize: 15,
-//     color: "#8E8E93",
-//     marginTop: 2,
-//   },
-//   filterBtn: {
-//     width: 44,
-//     height: 44,
-//     justifyContent: "center",
-//     alignItems: "center",
-//     borderRadius: 22,
-//     backgroundColor: "#F2F2F7",
-//   },
-
-//   // Search
-//   searchContainer: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     backgroundColor: "#F2F2F7",
-//     marginHorizontal: 16,
-//     marginVertical: 12,
-//     paddingHorizontal: 12,
-//     height: 44,
-//     borderRadius: 10,
-//   },
-//   searchIcon: {
-//     marginRight: 8,
-//   },
-//   searchInput: {
-//     flex: 1,
-//     fontSize: 16,
-//     color: "#000000",
-//   },
-
-//   // Content
-//   content: {
-//     flex: 1,
-//     paddingHorizontal: 16,
-//   },
-
-//   // Empty State
-//   emptyState: {
-//     alignItems: "center",
-//     justifyContent: "center",
-//     paddingVertical: 80,
-//   },
-//   emptyText: {
-//     fontSize: 22,
-//     fontWeight: "600",
-//     color: "#8E8E93",
-//     marginTop: 16,
-//   },
-//   emptySubtext: {
-//     fontSize: 15,
-//     color: "#C7C7CC",
-//     marginTop: 8,
-//     textAlign: "center",
-//   },
-
-//   // Task Card
-//   taskCard: {
-//     backgroundColor: "#FFFFFF",
-//     borderRadius: 16,
-//     padding: 16,
-//     marginBottom: 12,
-//     shadowColor: "#000",
-//     shadowOffset: { width: 0, height: 1 },
-//     shadowOpacity: 0.05,
-//     shadowRadius: 8,
-//     elevation: 2,
-//   },
-//   taskHeader: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     marginBottom: 8,
-//   },
-//   statusDot: {
-//     width: 10,
-//     height: 10,
-//     borderRadius: 5,
-//     marginRight: 10,
-//   },
-//   taskTitle: {
-//     flex: 1,
-//     fontSize: 17,
-//     fontWeight: "600",
-//     color: "#000000",
-//   },
-//   taskDesc: {
-//     fontSize: 15,
-//     color: "#8E8E93",
-//     lineHeight: 20,
-//     marginBottom: 12,
-//     paddingLeft: 20,
-//   },
-//   taskFooter: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     paddingLeft: 20,
-//   },
-//   deadlineRow: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//   },
-//   deadlineText: {
-//     fontSize: 13,
-//     color: "#8E8E93",
-//     marginLeft: 6,
-//   },
-//   overdueText: {
-//     color: "#FF3B30",
-//     fontWeight: "600",
-//   },
-//   deleteBtn: {
-//     width: 36,
-//     height: 36,
-//     justifyContent: "center",
-//     alignItems: "center",
-//     borderRadius: 18,
-//     backgroundColor: "#FFF5F5",
-//   },
-
-//   // FAB
-//   fab: {
-//     position: "absolute",
-//     right: 20,
-//     bottom: 80,
-//     width: 60,
-//     height: 60,
-//     borderRadius: 30,
-//     backgroundColor: "#007AFF",
-//     justifyContent: "center",
-//     alignItems: "center",
-//     shadowColor: "#007AFF",
-//     shadowOffset: { width: 0, height: 4 },
-//     shadowOpacity: 0.4,
-//     shadowRadius: 12,
-//     elevation: 8,
-//   },
-
-//   // Modal
-//   modalContainer: {
-//     flex: 1,
-//     backgroundColor: "#F2F2F7",
-//   },
-//   modalSafe: {
-//     flex: 1,
-//     backgroundColor: "#F2F2F7",
-//   },
-//   modalHeader: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     paddingHorizontal: 16,
-//     paddingVertical: 12,
-//     backgroundColor: "#FFFFFF",
-//     borderBottomWidth: 0.5,
-//     borderBottomColor: "#C6C6C8",
-//   },
-//   modalCancel: {
-//     fontSize: 17,
-//     color: "#007AFF",
-//   },
-//   modalTitle: {
-//     fontSize: 17,
-//     fontWeight: "600",
-//     color: "#000000",
-//   },
-//   modalDone: {
-//     fontSize: 17,
-//     fontWeight: "600",
-//     color: "#007AFF",
-//   },
-//   modalBody: {
-//     flex: 1,
-//     paddingHorizontal: 16,
-//   },
-
-//   // Form
-//   formGroup: {
-//     marginTop: 24,
-//   },
-//   formLabel: {
-//     fontSize: 13,
-//     fontWeight: "600",
-//     color: "#8E8E93",
-//     marginBottom: 8,
-//     letterSpacing: 0.5,
-//   },
-//   formInput: {
-//     backgroundColor: "#FFFFFF",
-//     borderRadius: 10,
-//     padding: 16,
-//     fontSize: 17,
-//     color: "#000000",
-//     borderWidth: 1,
-//     borderColor: "#E5E5EA",
-//   },
-//   textArea: {
-//     height: 100,
-//     textAlignVertical: "top",
-//   },
-
-//   // Date Picker
-//   datePickerBtn: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     backgroundColor: "#FFFFFF",
-//     borderRadius: 10,
-//     padding: 16,
-//     borderWidth: 1,
-//     borderColor: "#E5E5EA",
-//   },
-//   datePickerText: {
-//     fontSize: 17,
-//     color: "#000000",
-//     marginLeft: 12,
-//   },
-
-//   // Subtask Input
-//   subtaskInputRow: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     backgroundColor: "#FFFFFF",
-//     borderRadius: 10,
-//     paddingLeft: 16,
-//     paddingRight: 8,
-//     borderWidth: 1,
-//     borderColor: "#E5E5EA",
-//   },
-//   subtaskInput: {
-//     flex: 1,
-//     fontSize: 17,
-//     color: "#000000",
-//     paddingVertical: 12,
-//   },
-//   addSubtaskBtn: {
-//     padding: 4,
-//   },
-
-//   // Subtask Preview
-//   subtaskPreview: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     backgroundColor: "#FFFFFF",
-//     borderRadius: 10,
-//     padding: 12,
-//     marginTop: 8,
-//     borderWidth: 1,
-//     borderColor: "#E5E5EA",
-//   },
-//   subtaskPreviewText: {
-//     flex: 1,
-//     fontSize: 15,
-//     color: "#000000",
-//     marginLeft: 12,
-//   },
-
-//   // Filter Modal
-//   filterOverlay: {
-//     flex: 1,
-//     backgroundColor: "rgba(0, 0, 0, 0.4)",
-//     justifyContent: "flex-end",
-//   },
-//   filterContent: {
-//     backgroundColor: "#FFFFFF",
-//     borderTopLeftRadius: 20,
-//     borderTopRightRadius: 20,
-//     paddingBottom: 40,
-//   },
-//   filterHeader: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     padding: 20,
-//     borderBottomWidth: 0.5,
-//     borderBottomColor: "#C6C6C8",
-//   },
-//   filterTitle: {
-//     fontSize: 20,
-//     fontWeight: "600",
-//     color: "#000000",
-//   },
-//   filterBody: {
-//     padding: 20,
-//   },
-//   filterMainLabel: {
-//     fontSize: 15,
-//     fontWeight: "600",
-//     color: "#000000",
-//     marginBottom: 16,
-//   },
-//   filterLabel: {
-//     fontSize: 15,
-//     fontWeight: "600",
-//     color: "#000000",
-//     marginBottom: 8,
-//     marginTop: 16,
-//   },
-//   dateRangeRow: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     gap: 12,
-//     marginBottom: 24,
-//   },
-//   dateRangeBtn: {
-//     flex: 1,
-//     backgroundColor: "#FFFFFF",
-//     borderRadius: 12,
-//     borderWidth: 1,
-//     borderColor: "#E5E5EA",
-//     padding: 12,
-//     shadowColor: "#000",
-//     shadowOffset: { width: 0, height: 1 },
-//     shadowOpacity: 0.05,
-//     shadowRadius: 2,
-//     elevation: 1,
-//   },
-//   dateRangeBtnContent: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//   },
-//   dateRangeBtnText: {
-//     marginLeft: 8,
-//     flex: 1,
-//   },
-//   dateRangeLabel: {
-//     fontSize: 11,
-//     color: "#8E8E93",
-//     marginBottom: 2,
-//   },
-//   dateRangeValue: {
-//     fontSize: 15,
-//     fontWeight: "600",
-//     color: "#000000",
-//   },
-//   dateRangeSeparator: {
-//     width: 24,
-//     height: 24,
-//     justifyContent: "center",
-//     alignItems: "center",
-//   },
-//   filterActionsRow: {
-//     flexDirection: "row",
-//     gap: 12,
-//     marginTop: 8,
-//   },
-//   filterResetBtn: {
-//     flex: 1,
-//     flexDirection: "row",
-//     alignItems: "center",
-//     justifyContent: "center",
-//     backgroundColor: "#FFF5F5",
-//     borderRadius: 12,
-//     padding: 16,
-//     gap: 8,
-//   },
-//   filterResetText: {
-//     fontSize: 16,
-//     fontWeight: "600",
-//     color: "#FF3B30",
-//   },
-//   filterDateBtn: {
-//     backgroundColor: "#F2F2F7",
-//     borderRadius: 10,
-//     padding: 16,
-//   },
-//   filterDateText: {
-//     fontSize: 17,
-//     color: "#007AFF",
-//   },
-//   filterApplyBtn: {
-//     flex: 2,
-//     backgroundColor: "#007AFF",
-//     borderRadius: 12,
-//     padding: 16,
-//     alignItems: "center",
-//   },
-//   filterApplyText: {
-//     fontSize: 17,
-//     fontWeight: "600",
-//     color: "#FFFFFF",
-//   },
-
-//   // Detail Modal
-//   detailBody: {
-//     flex: 1,
-//     paddingHorizontal: 20,
-//   },
-//   statusBadge: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     alignSelf: "flex-start",
-//     paddingHorizontal: 12,
-//     paddingVertical: 8,
-//     borderRadius: 20,
-//     marginTop: 16,
-//   },
-//   statusBadgeText: {
-//     fontSize: 15,
-//     fontWeight: "600",
-//     marginLeft: 6,
-//   },
-//   detailTitle: {
-//     fontSize: 28,
-//     fontWeight: "700",
-//     color: "#000000",
-//     marginTop: 16,
-//     lineHeight: 34,
-//   },
-//   detailSection: {
-//     marginTop: 24,
-//   },
-//   detailSectionTitle: {
-//     fontSize: 13,
-//     fontWeight: "600",
-//     color: "#8E8E93",
-//     letterSpacing: 0.5,
-//     marginBottom: 12,
-//   },
-//   detailSectionHeader: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     marginBottom: 12,
-//   },
-//   detailText: {
-//     fontSize: 17,
-//     color: "#000000",
-//     lineHeight: 24,
-//   },
-
-//   // Notes Preview Card in Form
-//   notesPreviewCard: {
-//     backgroundColor: "#FFFEF7",
-//     borderRadius: 12,
-//     borderWidth: 1,
-//     borderColor: "#F0EDD4",
-//     padding: 16,
-//     minHeight: 100,
-//     shadowColor: "#000",
-//     shadowOffset: { width: 0, height: 1 },
-//     shadowOpacity: 0.05,
-//     shadowRadius: 2,
-//     elevation: 1,
-//   },
-//   notesPreviewContent: {
-//     flex: 1,
-//   },
-//   notesPreviewText: {
-//     fontSize: 15,
-//     color: "#3C3C3C",
-//     lineHeight: 22,
-//     marginBottom: 12,
-//   },
-//   notesPreviewFooter: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     paddingTop: 8,
-//     borderTopWidth: 1,
-//     borderTopColor: "#F0EDD4",
-//   },
-//   notesPreviewMeta: {
-//     fontSize: 12,
-//     color: "#8E8E93",
-//   },
-//   notesEmptyState: {
-//     alignItems: "center",
-//     justifyContent: "center",
-//     paddingVertical: 20,
-//   },
-//   notesEmptyText: {
-//     fontSize: 15,
-//     color: "#C7C7CC",
-//     marginTop: 8,
-//   },
-
-//   // Notes Detail Card
-//   notesDetailCard: {
-//     backgroundColor: "#FFFEF7",
-//     borderRadius: 12,
-//     borderWidth: 1,
-//     borderColor: "#F0EDD4",
-//     padding: 16,
-//   },
-//   notesDetailText: {
-//     fontSize: 16,
-//     color: "#3C3C3C",
-//     lineHeight: 24,
-//     marginBottom: 12,
-//   },
-//   notesDetailFooter: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     paddingTop: 12,
-//     borderTopWidth: 1,
-//     borderTopColor: "#F0EDD4",
-//   },
-//   notesDetailMeta: {
-//     fontSize: 12,
-//     color: "#8E8E93",
-//   },
-
-//   // Notes Editor (Fullscreen)
-//   notesEditorContainer: {
-//     flex: 1,
-//     backgroundColor: "#FFFEF7",
-//   },
-//   notesEditorHeader: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     paddingHorizontal: 16,
-//     paddingVertical: 12,
-//     backgroundColor: "#FFFEF7",
-//     borderBottomWidth: 1,
-//     borderBottomColor: "#F0EDD4",
-//   },
-//   notesEditorBackBtn: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//   },
-//   notesEditorBackText: {
-//     fontSize: 17,
-//     color: "#007AFF",
-//     marginLeft: 4,
-//   },
-//   notesEditorInfo: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     gap: 12,
-//   },
-//   notesEditorWordCount: {
-//     fontSize: 14,
-//     color: "#8E8E93",
-//   },
-//   notesEditorBody: {
-//     flex: 1,
-//     paddingHorizontal: 20,
-//     paddingTop: 20,
-//   },
-//   notesEditorInput: {
-//     fontSize: 17,
-//     color: "#3C3C3C",
-//     lineHeight: 26,
-//     minHeight: 400,
-//     fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
-//   },
-//   notesEditorToolbar: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     paddingHorizontal: 16,
-//     paddingVertical: 12,
-//     backgroundColor: "#FFFEF7",
-//     borderTopWidth: 1,
-//     borderTopColor: "#F0EDD4",
-//   },
-//   notesToolbarBtn: {
-//     padding: 8,
-//   },
-//   notesToolbarDivider: {
-//     width: 1,
-//     height: 24,
-//     backgroundColor: "#E5E5EA",
-//     marginHorizontal: 12,
-//   },
-//   notesToolbarDate: {
-//     fontSize: 13,
-//     color: "#8E8E93",
-//   },
-
-//   detailInfoRow: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//   },
-//   detailInfoText: {
-//     fontSize: 17,
-//     color: "#000000",
-//     marginLeft: 12,
-//   },
-
-//   // Subtask Section
-//   subtaskHeader: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     marginBottom: 16,
-//   },
-//   progressBadge: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//   },
-//   progressText: {
-//     fontSize: 15,
-//     fontWeight: "600",
-//     color: "#007AFF",
-//     marginRight: 8,
-//   },
-//   progressBarContainer: {
-//     width: 60,
-//     height: 6,
-//     backgroundColor: "#E5E5EA",
-//     borderRadius: 3,
-//     overflow: "hidden",
-//   },
-//   progressBar: {
-//     height: "100%",
-//     backgroundColor: "#007AFF",
-//     borderRadius: 3,
-//   },
-//   addSubtaskRow: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     marginBottom: 16,
-//   },
-//   addSubtaskInput: {
-//     flex: 1,
-//     backgroundColor: "#FFFFFF",
-//     borderRadius: 10,
-//     padding: 12,
-//     fontSize: 17,
-//     color: "#000000",
-//     borderWidth: 1,
-//     borderColor: "#E5E5EA",
-//     marginRight: 8,
-//   },
-//   addSubtaskIconBtn: {
-//     width: 44,
-//     height: 44,
-//     justifyContent: "center",
-//     alignItems: "center",
-//   },
-//   subtaskItem: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     backgroundColor: "#FFFFFF",
-//     borderRadius: 12,
-//     padding: 16,
-//     marginBottom: 8,
-//     borderWidth: 1,
-//     borderColor: "#E5E5EA",
-//   },
-//   subtaskCheckbox: {
-//     marginRight: 12,
-//   },
-//   subtaskText: {
-//     flex: 1,
-//     fontSize: 17,
-//     color: "#000000",
-//   },
-//   subtaskCompleted: {
-//     textDecorationLine: "line-through",
-//     color: "#8E8E93",
-//   },
-//   emptySubtasks: {
-//     alignItems: "center",
-//     paddingVertical: 40,
-//   },
-//   emptySubtasksText: {
-//     fontSize: 15,
-//     color: "#C7C7CC",
-//     marginTop: 12,
-//   },
-
-//   // Reminder Styles
-//   reminderHeader: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     backgroundColor: "#FFFFFF",
-//     borderRadius: 10,
-//     padding: 16,
-//     borderWidth: 1,
-//     borderColor: "#E5E5EA",
-//   },
-//   reminderLabelRow: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//   },
-//   formLabelInline: {
-//     fontSize: 13,
-//     fontWeight: "600",
-//     color: "#8E8E93",
-//     letterSpacing: 0.5,
-//     marginLeft: 8,
-//   },
-//   reminderSettings: {
-//     backgroundColor: "#F9F9F9",
-//     borderRadius: 10,
-//     padding: 16,
-//     marginTop: 12,
-//   },
-//   reminderSectionLabel: {
-//     fontSize: 15,
-//     fontWeight: "600",
-//     color: "#000000",
-//     marginBottom: 12,
-//   },
-//   reminderText: {
-//     fontSize: 15,
-//     color: "#000000",
-//     marginBottom: 12,
-//   },
-//   reminderDaysRow: {
-//     flexDirection: "row",
-//     gap: 8,
-//     marginBottom: 12,
-//   },
-//   reminderDayBtn: {
-//     flex: 1,
-//     paddingVertical: 10,
-//     paddingHorizontal: 12,
-//     borderRadius: 8,
-//     backgroundColor: "#FFFFFF",
-//     borderWidth: 1,
-//     borderColor: "#E5E5EA",
-//     alignItems: "center",
-//   },
-//   reminderDayBtnActive: {
-//     backgroundColor: "#007AFF",
-//     borderColor: "#007AFF",
-//   },
-//   reminderDayText: {
-//     fontSize: 13,
-//     color: "#000000",
-//     fontWeight: "500",
-//   },
-//   reminderDayTextActive: {
-//     color: "#FFFFFF",
-//   },
-//   customDaysContainer: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     backgroundColor: "#FFFFFF",
-//     borderRadius: 10,
-//     padding: 12,
-//     borderWidth: 1,
-//     borderColor: "#E5E5EA",
-//     marginTop: 8,
-//   },
-//   customDaysLabel: {
-//     fontSize: 14,
-//     color: "#8E8E93",
-//     marginRight: 8,
-//   },
-//   customDaysInput: {
-//     width: 60,
-//     height: 40,
-//     backgroundColor: "#F2F2F7",
-//     borderRadius: 8,
-//     paddingHorizontal: 12,
-//     fontSize: 16,
-//     fontWeight: "600",
-//     color: "#000000",
-//     textAlign: "center",
-//     marginHorizontal: 8,
-//   },
-//   customDaysUnit: {
-//     fontSize: 14,
-//     color: "#000000",
-//   },
-//   reminderHint: {
-//     fontSize: 13,
-//     color: "#8E8E93",
-//     marginTop: 12,
-//     lineHeight: 18,
-//   },
-//   timePickerBtn: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     backgroundColor: "#FFFFFF",
-//     borderRadius: 10,
-//     padding: 16,
-//     borderWidth: 1,
-//     borderColor: "#E5E5EA",
-//   },
-//   timePickerText: {
-//     flex: 1,
-//     fontSize: 17,
-//     color: "#000000",
-//     marginLeft: 12,
-//     fontWeight: "600",
-//   },
-//   timePickerChevron: {
-//     marginLeft: 8,
-//   },
-
-//   // Date Picker Actions
-//   datePickerActions: {
-//     alignItems: "flex-end",
-//     paddingTop: 8,
-//   },
-//   datePickerDoneBtn: {
-//     backgroundColor: "#007AFF",
-//     paddingHorizontal: 20,
-//     paddingVertical: 8,
-//     borderRadius: 8,
-//   },
-//   datePickerDoneText: {
-//     color: "#FFFFFF",
-//     fontSize: 16,
-//     fontWeight: "600",
-//   },
-// });
-
-// import { useLocalSearchParams } from "expo-router";
-// import React from "react";
-// import { Text, View } from "react-native";
-
-// const Whatever = () => {
-//   const { id } = useLocalSearchParams();
-//   return (
-//     <View>
-//       <Text>{id}</Text>
-//     </View>
-//   );
-// };
-
-// export default Whatever;
-
-// import { tasks } from "@/db/schema";
-// import { Ionicons } from "@expo/vector-icons";
-// import { eq } from "drizzle-orm";
-// import { drizzle } from "drizzle-orm/expo-sqlite";
-// import { router, useLocalSearchParams } from "expo-router";
-// import { useSQLiteContext } from "expo-sqlite";
-// import React, { useEffect, useState } from "react";
-// import {
-//   Alert,
-//   Modal,
-//   ScrollView,
-//   Text,
-//   TextInput,
-//   TouchableOpacity,
-//   View,
-// } from "react-native";
-// import { SafeAreaView } from "react-native-safe-area-context";
-// import { useSubtasks } from "../../hooks/useTasks";
-// import { detailStyles } from "../../styles/detailStyles";
-// import { modalStyles } from "../../styles/modalStyles";
-// import EditTaskModal from "@/components/tasks/EditTaskModal";
-
-// export default function TaskDetailScreen() {
-//   const { id } = useLocalSearchParams();
-//   const taskId = parseInt(id as string);
-
-//   const [task, setTask] = useState<any>(null);
-//   const [loading, setLoading] = useState(true);
-//   const [editModalVisible, setEditModalVisible] = useState(false);
-//   const [newSubtask, setNewSubtask] = useState("");
-//   const [showNotesModal, setShowNotesModal] = useState(false);
-//   const [notesWordCount, setNotesWordCount] = useState(0);
-
-//   const x = useSQLiteContext();
-//   const db = drizzle(x);
-
-//   const {
-//     subtasks,
-//     createSubtask,
-//     toggleSubtask,
-//     deleteSubtask,
-//     refreshSubtasks,
-//   } = useSubtasks(taskId);
-
-//   // Load task
-//   const loadTask = async () => {
-//     try {
-//       const result = await db
-//         .select()
-//         .from(tasks)
-//         .where(eq(tasks.id, taskId))
-//         .limit(1);
-
-//       if (result.length > 0) {
-//         setTask(result[0]);
-//       } else {
-//         Alert.alert("Error", "Tugas tidak ditemukan");
-//         router.back();
-//       }
-//     } catch (error) {
-//       console.error("Error loading task:", error);
-//       Alert.alert("Error", "Gagal memuat tugas");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   useEffect(() => {
-//     loadTask();
-//   }, [taskId]);
-
-//   useEffect(() => {
-//     if (task?.notes) {
-//       const words = task.notes
-//         .trim()
-//         .split(/\s+/)
-//         .filter((w: string) => w.length > 0);
-//       setNotesWordCount(words.length);
-//     }
-//   }, [task?.notes]);
-
-//   // Auto-update status based on subtasks
-//   useEffect(() => {
-//     const updateStatus = async () => {
-//       if (!task || subtasks.length === 0) return;
-
-//       const completedCount = subtasks.filter((s: any) => s.completed).length;
-//       let newStatus = "pending";
-
-//       if (completedCount === subtasks.length) {
-//         newStatus = "completed";
-//       } else if (completedCount > 0) {
-//         newStatus = "in_progress";
-//       }
-
-//       if (newStatus !== task.status) {
-//         try {
-//           await db
-//             .update(tasks)
-//             .set({ status: newStatus, updatedAt: new Date().toISOString() })
-//             .where(eq(tasks.id, taskId));
-
-//           setTask({ ...task, status: newStatus });
-//         } catch (error) {
-//           console.error("Error updating status:", error);
-//         }
-//       }
-//     };
-
-//     updateStatus();
-//   }, [subtasks]);
-
-//   const handleAddSubtask = async () => {
-//     if (!newSubtask.trim()) {
-//       Alert.alert("Error", "Subtask tidak boleh kosong");
-//       return;
-//     }
-//     try {
-//       await createSubtask(newSubtask.trim());
-//       setNewSubtask("");
-//       await refreshSubtasks();
-//     } catch {
-//       Alert.alert("Error", "Gagal menambah subtask");
-//     }
-//   };
-
-//   const handleToggleSubtask = async (id: number, completed: boolean) => {
-//     try {
-//       await toggleSubtask(id, completed);
-//       await refreshSubtasks();
-//     } catch {
-//       Alert.alert("Error", "Gagal mengubah status");
-//     }
-//   };
-
-//   const handleDeleteSubtask = async (id: number) => {
-//     try {
-//       await deleteSubtask(id);
-//       await refreshSubtasks();
-//     } catch {
-//       Alert.alert("Error", "Gagal menghapus subtask");
-//     }
-//   };
-
-//   const handleUpdateTask = async (taskData: any) => {
-//     try {
-//       await db
-//         .update(tasks)
-//         .set({ ...taskData, updatedAt: new Date().toISOString() })
-//         .where(eq(tasks.id, taskId));
-
-//       await loadTask();
-//     } catch (error) {
-//       throw error;
-//     }
-//   };
-
-//   const handleUpdateNotes = async (newNotes: string) => {
-//     try {
-//       await db
-//         .update(tasks)
-//         .set({ notes: newNotes || null, updatedAt: new Date().toISOString() })
-//         .where(eq(tasks.id, taskId));
-
-//       setTask({ ...task, notes: newNotes });
-//     } catch (error) {
-//       console.error("Error updating notes:", error);
-//     }
-//   };
-
-//   if (loading || !task) {
-//     return (
-//       <SafeAreaView style={detailStyles.container}>
-//         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-//           <Text>Memuat...</Text>
-//         </View>
-//       </SafeAreaView>
-//     );
-//   }
-
-//   const completedCount = subtasks.filter((s: any) => s.completed).length;
-//   const progress =
-//     subtasks.length > 0 ? (completedCount / subtasks.length) * 100 : 0;
-
-//   const statusConfig = {
-//     pending: { label: "Pending", color: "#FF9500", icon: "time-outline" },
-//     in_progress: {
-//       label: "Berjalan",
-//       color: "#007AFF",
-//       icon: "play-circle-outline",
-//     },
-//     completed: {
-//       label: "Selesai",
-//       color: "#34C759",
-//       icon: "checkmark-circle-outline",
-//     },
-//   };
-
-//   const currentStatus =
-//     statusConfig[task.status as keyof typeof statusConfig];
-
-//   const deadline = new Date(task.deadline);
-//   const isOverdue = deadline < new Date() && task.status !== "completed";
-
-//   return (
-//     <SafeAreaView style={detailStyles.container}>
-//       {/* Header */}
-//       <View style={detailStyles.header}>
-//         <View style={detailStyles.headerLeft}>
-//           <TouchableOpacity onPress={() => router.back()}>
-//             <Ionicons name="chevron-back" size={28} color="#007AFF" />
-//           </TouchableOpacity>
-//           <Text style={detailStyles.headerTitle}>Detail Tugas</Text>
-//         </View>
-//         <TouchableOpacity
-//           style={detailStyles.editBtn}
-//           onPress={() => setEditModalVisible(true)}
-//         >
-//           <Text style={detailStyles.editBtnText}>Edit</Text>
-//         </TouchableOpacity>
-//       </View>
-
-//       <ScrollView style={detailStyles.body} showsVerticalScrollIndicator={false}>
-//         {/* Status Badge */}
-//         <View
-//           style={[
-//             detailStyles.statusBadge,
-//             { backgroundColor: currentStatus.color + "20" },
-//           ]}
-//         >
-//           <Ionicons
-//             name={currentStatus.icon as any}
-//             size={20}
-//             color={currentStatus.color}
-//           />
-//           <Text
-//             style={[
-//               detailStyles.statusBadgeText,
-//               { color: currentStatus.color },
-//             ]}
-//           >
-//             {currentStatus.label}
-//           </Text>
-//         </View>
-
-//         {/* Title */}
-//         <Text style={detailStyles.title}>{task.title}</Text>
-
-//         {/* Description */}
-//         {task.description && (
-//           <View style={detailStyles.section}>
-//             <Text style={detailStyles.sectionTitle}>DESKRIPSI</Text>
-//             <Text style={detailStyles.sectionText}>{task.description}</Text>
-//           </View>
-//         )}
-
-//         {/* Notes */}
-//         {task.notes && (
-//           <View style={detailStyles.section}>
-//             <View style={detailStyles.sectionHeader}>
-//               <Text style={detailStyles.sectionTitle}>CATATAN</Text>
-//               <TouchableOpacity onPress={() => setShowNotesModal(true)}>
-//                 <Ionicons name="pencil" size={18} color="#007AFF" />
-//               </TouchableOpacity>
-//             </View>
-//             <TouchableOpacity
-//               style={detailStyles.notesCard}
-//               onPress={() => setShowNotesModal(true)}
-//               activeOpacity={0.7}
-//             >
-//               <Text style={detailStyles.notesText}>{task.notes}</Text>
-//               <View style={detailStyles.notesFooter}>
-//                 <Text style={detailStyles.notesMeta}>{notesWordCount} kata</Text>
-//                 <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
-//               </View>
-//             </TouchableOpacity>
-//           </View>
-//         )}
-
-//         {/* Notes Editor Modal */}
-//         <Modal
-//           visible={showNotesModal}
-//           animationType="slide"
-//           presentationStyle="fullScreen"
-//           onRequestClose={() => setShowNotesModal(false)}
-//         >
-//           <SafeAreaView style={modalStyles.notesEditorContainer}>
-//             <View style={modalStyles.notesEditorHeader}>
-//               <TouchableOpacity
-//                 style={modalStyles.notesEditorBackBtn}
-//                 onPress={() => setShowNotesModal(false)}
-//               >
-//                 <Ionicons name="chevron-back" size={28} color="#007AFF" />
-//                 <Text style={modalStyles.notesEditorBackText}>Kembali</Text>
-//               </TouchableOpacity>
-//               <View style={modalStyles.notesEditorInfo}>
-//                 <Text style={modalStyles.notesEditorWordCount}>
-//                   {notesWordCount} kata
-//                 </Text>
-//               </View>
-//             </View>
-
-//             <ScrollView
-//               style={modalStyles.notesEditorBody}
-//               keyboardShouldPersistTaps="handled"
-//             >
-//               <TextInput
-//                 style={modalStyles.notesEditorInput}
-//                 value={task.notes || ""}
-//                 onChangeText={handleUpdateNotes}
-//                 placeholder="Mulai menulis catatan Anda..."
-//                 placeholderTextColor="#C7C7CC"
-//                 multiline
-//                 autoFocus
-//                 textAlignVertical="top"
-//               />
-//             </ScrollView>
-
-//             <View style={modalStyles.notesEditorToolbar}>
-//               <TouchableOpacity
-//                 style={modalStyles.notesToolbarBtn}
-//                 onPress={() => handleUpdateNotes("")}
-//               >
-//                 <Ionicons name="trash-outline" size={24} color="#FF3B30" />
-//               </TouchableOpacity>
-//               <View style={modalStyles.notesToolbarDivider} />
-//               <Text style={modalStyles.notesToolbarDate}>
-//                 {new Date().toLocaleString("id-ID", {
-//                   day: "numeric",
-//                   month: "long",
-//                   year: "numeric",
-//                   hour: "2-digit",
-//                   minute: "2-digit",
-//                 })}
-//               </Text>
-//             </View>
-//           </SafeAreaView>
-//         </Modal>
-
-//         {/* Deadline */}
-//         <View style={detailStyles.section}>
-//           <Text style={detailStyles.sectionTitle}>DEADLINE</Text>
-//           <View style={detailStyles.infoRow}>
-//             <Ionicons
-//               name="calendar-outline"
-//               size={20}
-//               color={isOverdue ? "#FF3B30" : "#007AFF"}
-//             />
-//             <Text
-//               style={[
-//                 detailStyles.infoText,
-//                 isOverdue && { color: "#FF3B30", fontWeight: "600" },
-//               ]}
-//             >
-//               {deadline.toLocaleDateString("id-ID", {
-//                 weekday: "long",
-//                 day: "numeric",
-//                 month: "long",
-//                 year: "numeric",
-//               })}
-//               {isOverdue && " (Terlambat)"}
-//             </Text>
-//           </View>
-//         </View>
-
-//         {/* Reminder Info */}
-//         {task.reminderEnabled && (
-//           <View style={detailStyles.section}>
-//             <Text style={detailStyles.sectionTitle}>PENGINGAT</Text>
-//             <View style={detailStyles.reminderInfo}>
-//               <Ionicons name="notifications" size={20} color="#007AFF" />
-//               <Text style={detailStyles.reminderInfoText}>
-//                 {task.reminderDaysBefore === 0
-//                   ? "Pada hari yang sama"
-//                   : `${task.reminderDaysBefore} hari sebelumnya`}{" "}
-//                 pukul {task.reminderTime}
-//               </Text>
-//             </View>
-//           </View>
-//         )}
-
-//         {/* Subtasks */}
-//         <View style={detailStyles.section}>
-//           <View style={detailStyles.subtaskHeader}>
-//             <Text style={detailStyles.sectionTitle}>SUBTASK</Text>
-//             {subtasks.length > 0 && (
-//               <View style={detailStyles.progressBadge}>
-//                 <Text style={detailStyles.progressText}>
-//                   {completedCount}/{subtasks.length}
-//                 </Text>
-//                 <View style={detailStyles.progressBarContainer}>
-//                   <View
-//                     style={[detailStyles.progressBar, { width: `${progress}%` }]}
-//                   />
-//                 </View>
-//               </View>
-//             )}
-//           </View>
-
-//           {/* Add Subtask */}
-//           <View style={detailStyles.addSubtaskRow}>
-//             <TextInput
-//               style={detailStyles.addSubtaskInput}
-//               value={newSubtask}
-//               onChangeText={setNewSubtask}
-//               placeholder="Tambah subtask baru..."
-//               placeholderTextColor="#C7C7CC"
-//               onSubmitEditing={handleAddSubtask}
-//               returnKeyType="done"
-//             />
-//             <TouchableOpacity
-//               style={detailStyles.addSubtaskIconBtn}
-//               onPress={handleAddSubtask}
-//             >
-//               <Ionicons name="add-circle" size={32} color="#007AFF" />
-//             </TouchableOpacity>
-//           </View>
-
-//           {/* Subtask List */}
-//           {subtasks.map((subtask: any) => (
-//             <View key={subtask.id} style={detailStyles.subtaskItem}>
-//               <TouchableOpacity
-//                 style={detailStyles.subtaskCheckbox}
-//                 onPress={() =>
-//                   handleToggleSubtask(subtask.id, subtask.completed ? 0 : 1)
-//                 }
-//                 activeOpacity={0.7}
-//               >
-//                 <Ionicons
-//                   name={
-//                     subtask.completed ? "checkmark-circle" : "ellipse-outline"
-//                   }
-//                   size={24}
-//                   color={subtask.completed ? "#34C759" : "#C7C7CC"}
-//                 />
-//               </TouchableOpacity>
-//               <Text
-//                 style={[
-//                   detailStyles.subtaskText,
-//                   subtask.completed && detailStyles.subtaskCompleted,
-//                 ]}
-//               >
-//                 {subtask.title}
-//               </Text>
-//               <TouchableOpacity
-//                 onPress={() => handleDeleteSubtask(subtask.id)}
-//                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-//               >
-//                 <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-//               </TouchableOpacity>
-//             </View>
-//           ))}
-
-//           {subtasks.length === 0 && (
-//             <View style={detailStyles.emptySubtasks}>
-//               <Ionicons name="list-outline" size={48} color="#C7C7CC" />
-//               <Text style={detailStyles.emptySubtasksText}>
-//                 Belum ada subtask
-//               </Text>
-//             </View>
-//           )}
-//         </View>
-
-//         <View style={{ height: 40 }} />
-//       </ScrollView>
-
-//       {/* Edit Modal */}
-//       <EditTaskModal
-//         visible={editModalVisible}
-//         onClose={() => {
-//           setEditModalVisible(false);
-//           loadTask();
-//         }}
-//         task={task}
-//         onUpdate={handleUpdateTask}
-//       />
-//     </SafeAreaView>
-//   );
-// }
-
 import EditTaskModal from "@/components/tasks/EditTaskModal";
-import { tasks } from "@/db/schema";
+import { useTask } from "@/hooks/useTasks";
+import { useAuth } from "@/lib/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
-import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/expo-sqlite";
 import { router, useLocalSearchParams } from "expo-router";
-import { useSQLiteContext } from "expo-sqlite";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useSubtasks } from "../../hooks/useTasks";
-import { detailStyles } from "../../styles/detailStyles";
-import { modalStyles } from "../../styles/modalStyles";
 
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams();
   const taskId = parseInt(id as string);
+  const { user } = useAuth();
+  const userId = user?.id || "";
+
+  const {
+    getTaskById,
+    updateTask,
+    deleteTask,
+    toggleSubtaskCompletion,
+    fetchTasks,
+  } = useTask(userId);
 
   const [task, setTask] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [editModalVisible, setEditModalVisible] = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
   const [showNotesModal, setShowNotesModal] = useState(false);
-  const [notesWordCount, setNotesWordCount] = useState(0);
+  const [editingNotes, setEditingNotes] = useState("");
+  const [isEditTaskModal, setIsEditTaskModal] = useState(false);
 
-  const x = useSQLiteContext();
-  const db = drizzle(x);
-
-  const {
-    subtasks,
-    createSubtask,
-    toggleSubtask,
-    deleteSubtask,
-    refreshSubtasks,
-  } = useSubtasks(taskId);
-
+  // Load task
   const loadTask = async () => {
     try {
-      const result = await db
-        .select()
-        .from(tasks)
-        .where(eq(tasks.id, taskId))
-        .limit(1);
-
-      if (result.length > 0) {
-        setTask(result[0]);
+      setLoading(true);
+      const taskData = await getTaskById(taskId);
+      if (taskData) {
+        setTask(taskData);
+        setEditingNotes(taskData.notes || "");
       } else {
-        Alert.alert("Error", "Item tidak ditemukan");
+        Alert.alert("Error", "Task tidak ditemukan");
         router.back();
       }
     } catch (error) {
       console.error("Error loading task:", error);
-      Alert.alert("Error", "Gagal memuat item");
+      Alert.alert("Error", "Gagal memuat task");
     } finally {
       setLoading(false);
     }
@@ -1795,152 +61,172 @@ export default function TaskDetailScreen() {
     loadTask();
   }, [taskId]);
 
-  useEffect(() => {
-    if (task?.notes) {
-      const words = task.notes
-        .trim()
-        .split(/\s+/)
-        .filter((w: string) => w.length > 0);
-      setNotesWordCount(words.length);
-    }
-  }, [task?.notes]);
-
-  // Auto-update status based on subtasks (only for tugas)
-  useEffect(() => {
-    const updateStatus = async () => {
-      if (!task || task.category !== "tugas" || subtasks.length === 0) return;
-
-      const completedCount = subtasks.filter((s: any) => s.completed).length;
-      let newStatus = "pending";
-
-      if (completedCount === subtasks.length) {
-        newStatus = "completed";
-      } else if (completedCount > 0) {
-        newStatus = "in_progress";
-      }
-
-      if (newStatus !== task.status) {
-        try {
-          await db
-            .update(tasks)
-            .set({ status: newStatus, updatedAt: new Date().toISOString() })
-            .where(eq(tasks.id, taskId));
-
-          setTask({ ...task, status: newStatus });
-        } catch (error) {
-          console.error("Error updating status:", error);
-        }
-      }
-    };
-
-    updateStatus();
-  }, [subtasks]);
-
-  const handleAddSubtask = async () => {
-    if (!newSubtask.trim()) {
-      Alert.alert("Error", "Subtask tidak boleh kosong");
-      return;
-    }
+  // Handle toggle subtask
+  const handleToggleSubtask = async (subtaskId: number) => {
     try {
-      await createSubtask(newSubtask.trim());
-      setNewSubtask("");
-      await refreshSubtasks();
-    } catch {
-      Alert.alert("Error", "Gagal menambah subtask");
+      await toggleSubtaskCompletion(subtaskId);
+      await loadTask(); // Reload to get updated subtasks
+    } catch (error) {
+      Alert.alert("Error", "Gagal mengubah status subtask");
     }
   };
 
-  const handleToggleSubtask = async (id: number, completed: boolean) => {
+  // Handle save notes
+  const handleSaveNotes = async () => {
     try {
-      await toggleSubtask(id, completed);
-      await refreshSubtasks();
-    } catch {
+      await updateTask(taskId, { notes: editingNotes });
+      setTask({ ...task, notes: editingNotes });
+      setShowNotesModal(false);
+      Alert.alert("Berhasil", "Catatan berhasil disimpan");
+    } catch (error) {
+      Alert.alert("Error", "Gagal menyimpan catatan");
+    }
+  };
+
+  // Handle delete task
+  const handleDeleteTask = () => {
+    Alert.alert("Hapus Task", `Yakin hapus "${task?.title}"?`, [
+      { text: "Batal", style: "cancel" },
+      {
+        text: "Hapus",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteTask(taskId);
+            Alert.alert("Berhasil", "Task berhasil dihapus");
+            router.back();
+          } catch (error) {
+            Alert.alert("Error", "Gagal menghapus task");
+          }
+        },
+      },
+    ]);
+  };
+
+  // Toggle task status
+  const handleToggleStatus = async () => {
+    const statusFlow = {
+      pending: "in_progress",
+      in_progress: "completed",
+      completed: "pending",
+    };
+
+    const newStatus = statusFlow[task.status as keyof typeof statusFlow];
+
+    try {
+      await updateTask(taskId, { status: newStatus });
+      setTask({ ...task, status: newStatus });
+    } catch (error) {
       Alert.alert("Error", "Gagal mengubah status");
     }
   };
 
-  const handleDeleteSubtask = async (id: number) => {
-    try {
-      await deleteSubtask(id);
-      await refreshSubtasks();
-    } catch {
-      Alert.alert("Error", "Gagal menghapus subtask");
-    }
-  };
-
-  const handleUpdateTask = async (taskData: any) => {
-    try {
-      await db
-        .update(tasks)
-        .set({ ...taskData, updatedAt: new Date().toISOString() })
-        .where(eq(tasks.id, taskId));
-
-      await loadTask();
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const handleUpdateNotes = async (newNotes: string) => {
-    try {
-      await db
-        .update(tasks)
-        .set({ notes: newNotes || null, updatedAt: new Date().toISOString() })
-        .where(eq(tasks.id, taskId));
-
-      setTask({ ...task, notes: newNotes });
-    } catch (error) {
-      console.error("Error updating notes:", error);
-    }
-  };
-
-  if (loading || !task) {
+  if (loading) {
     return (
-      <SafeAreaView style={detailStyles.container}>
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
-          <Text style={{ fontSize: 16, color: "#8E8E93" }}>Memuat...</Text>
+      // Safe area View yamg bawah pad awalanya
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Memuat...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
-  const completedCount = subtasks.filter((s: any) => s.completed).length;
-  const progress =
-    subtasks.length > 0 ? (completedCount / subtasks.length) * 100 : 0;
+  if (!task) {
+    return null;
+  }
 
+  // Calculations
+  const deadline = new Date(task.deadline);
+  const now = new Date();
+  const isOverdue = deadline < now && task.status !== "completed";
+  const isCompleted = task.status === "completed";
+
+  const completedSubtasks =
+    task.subtasks?.filter((s: any) => s.completed).length || 0;
+  const totalSubtasks = task.subtasks?.length || 0;
+  const subtaskProgress =
+    totalSubtasks > 0 ? (completedSubtasks / totalSubtasks) * 100 : 0;
+
+  // Time remaining
+  const getTimeRemaining = () => {
+    const diff = deadline.getTime() - now.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+    if (days < 0) {
+      return {
+        text: `Terlambat ${Math.abs(days)} hari`,
+        color: "#FF3B30",
+        icon: "alert-circle",
+      };
+    } else if (days === 0 && hours > 0) {
+      return { text: `${hours} jam lagi`, color: "#FF9500", icon: "time" };
+    } else if (days === 0) {
+      return { text: "Hari ini", color: "#FF9500", icon: "today" };
+    } else if (days === 1) {
+      return { text: "Besok", color: "#FF9500", icon: "calendar" };
+    } else if (days <= 7) {
+      return {
+        text: `${days} hari lagi`,
+        color: "#007AFF",
+        icon: "calendar-outline",
+      };
+    } else {
+      return {
+        text: `${days} hari lagi`,
+        color: "#34C759",
+        icon: "calendar-outline",
+      };
+    }
+  };
+
+  const timeRemaining = getTimeRemaining();
+
+  // Status config
   const statusConfig = {
-    pending: { label: "Pending", color: "#FF9500", icon: "time-outline" },
+    pending: {
+      label: "Menunggu",
+      color: "#FF9500",
+      gradient: ["#FF9500", "#FF7A00"],
+      icon: "time-outline",
+    },
     in_progress: {
-      label: "Berjalan",
+      label: "Sedang Dikerjakan",
       color: "#007AFF",
+      gradient: ["#007AFF", "#0055D4"],
       icon: "play-circle-outline",
     },
     completed: {
       label: "Selesai",
       color: "#34C759",
-      icon: "checkmark-circle-outline",
+      gradient: ["#34C759", "#28A745"],
+      icon: "checkmark-circle",
     },
   };
 
+  // Category config
   const categoryConfig = {
     tugas: {
       label: "Tugas",
       icon: "briefcase",
       color: "#1976D2",
+      gradient: ["#1976D2", "#1565C0"],
       bg: "#E3F2FD",
     },
     jadwal: {
       label: "Jadwal",
       icon: "school",
       color: "#F57C00",
+      gradient: ["#F57C00", "#E65100"],
       bg: "#FFF3E0",
     },
     kegiatan: {
       label: "Kegiatan",
       icon: "calendar",
       color: "#7B1FA2",
+      gradient: ["#7B1FA2", "#6A1B9A"],
       bg: "#F3E5F5",
     },
   };
@@ -1949,322 +235,342 @@ export default function TaskDetailScreen() {
   const currentCategory =
     categoryConfig[task.category as keyof typeof categoryConfig];
 
-  const deadline = new Date(task.deadline);
-  const isOverdue = deadline < new Date() && task.status !== "completed";
-
-  const getRepeatLabel = (repeat: string) => {
-    switch (repeat) {
-      case "daily":
-        return "Harian";
-      case "weekly":
-        return "Mingguan";
-      case "monthly":
-        return "Bulanan";
-      case "yearly":
-        return "Tahunan";
-      default:
-        return "";
+  // Notification count
+  let notificationCount = 0;
+  if (task.notificationIds) {
+    try {
+      const ids = JSON.parse(task.notificationIds);
+      notificationCount = Array.isArray(ids) ? ids.length : 0;
+    } catch (e) {
+      notificationCount = 0;
     }
-  };
+  }
+
+  // Word count for notes
+  const notesWordCount = task.notes
+    ? task.notes
+        .trim()
+        .split(/\s+/)
+        .filter((w: string) => w.length > 0).length
+    : 0;
 
   return (
-    <SafeAreaView style={detailStyles.container}>
-      {/* Header */}
-      <View style={detailStyles.header}>
-        <View style={detailStyles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={28} color="#007AFF" />
-          </TouchableOpacity>
-          <Text style={detailStyles.headerTitle}>
-            Detail {currentCategory.label}
-          </Text>
-        </View>
+    // Safe area View yamg bawah pad awalanya
+    <View style={styles.container}>
+      {/* Header with Gradient */}
+      <View style={styles.header}>
         <TouchableOpacity
-          style={detailStyles.editBtn}
-          onPress={() => setEditModalVisible(true)}
+          style={styles.backButton}
+          onPress={() => router.back()}
         >
-          <Ionicons
-            name="pencil"
-            size={16}
-            color="#FFFFFF"
-            style={{ marginRight: 4 }}
-          />
-          <Text style={detailStyles.editBtnText}>Edit</Text>
+          <Ionicons name="chevron-back" size={28} color="#007AFF" />
+        </TouchableOpacity>
+
+        <Text style={styles.headerTitle}>Detail {currentCategory.label}</Text>
+
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => setIsEditTaskModal(true)}
+        >
+          <Ionicons name="trash-outline" size={24} color="#FF3B30" />
         </TouchableOpacity>
       </View>
 
+      {isEditTaskModal && (
+        <EditTaskModal
+          visible={isEditTaskModal}
+          task={task}
+          onClose={() => setIsEditTaskModal(false)}
+          onUpdateTask={updateTask}
+        />
+      )}
+
       <ScrollView
-        style={detailStyles.body}
+        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* Status & Category Row */}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-            marginTop: 16,
-          }}
-        >
-          {/* Status  */}
-          <View
-            style={[
-              detailStyles.categoryBadgeLarge,
-              { backgroundColor: currentStatus.color + "20" },
-            ]}
-          >
-            <Ionicons
-              name={currentStatus.icon as any}
-              size={20}
-              color={currentStatus.color}
-            />
-            <Text
-              style={[
-                detailStyles.statusBadgeText,
-                { color: currentStatus.color },
-              ]}
-            >
-              aaaaa{/* {currentStatus.label} */}
-            </Text>
-          </View>
-          {/* Category  */}
-
-          <View
-            style={[
-              detailStyles.categoryBadgeLarge,
-              { backgroundColor: currentCategory.bg },
-            ]}
-          >
-            <Ionicons
-              name={currentCategory.icon as any}
-              size={20}
-              color={currentCategory.color}
-            />
-            <Text
-              style={[
-                detailStyles.categoryBadgeTextLarge,
-                { color: currentCategory.color },
-              ]}
-            >
-              bbbb{/* {currentCategory.label} */}
-            </Text>
-          </View>
-        </View>
-
-        {/* Title */}
-        <Text style={detailStyles.title}>{task.title}</Text>
-
-        {/* Description */}
-        {task.description && (
-          <View style={detailStyles.section}>
-            <Text style={detailStyles.sectionTitle}>DESKRIPSI</Text>
-            <Text style={detailStyles.sectionText}>{task.description}</Text>
-          </View>
-        )}
-
-        {/* Notes - Only for Tugas */}
-        {task.category === "tugas" && task.notes && (
-          <View style={detailStyles.section}>
-            <View style={detailStyles.sectionHeader}>
-              <Text style={detailStyles.sectionTitle}>CATATAN</Text>
-              <TouchableOpacity onPress={() => setShowNotesModal(true)}>
-                <Ionicons name="pencil" size={18} color="#007AFF" />
-              </TouchableOpacity>
+        {/* Hero Section with Status */}
+        <View style={styles.heroSection}>
+          {/* Overdue/Completed Banner */}
+          {isOverdue && !isCompleted && task.category === "tugas" && (
+            <View style={[styles.alertBanner, { backgroundColor: "#FF3B30" }]}>
+              <Ionicons name="alert-circle" size={18} color="#FFFFFF" />
+              <Text style={styles.alertBannerText}>Task Terlambat!</Text>
             </View>
+          )}
+
+          {isCompleted && (
+            <View style={[styles.alertBanner, { backgroundColor: "#34C759" }]}>
+              <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+              <Text style={styles.alertBannerText}>Task Selesai</Text>
+            </View>
+          )}
+
+          {/* Category & Status Badges */}
+          <View style={styles.badgeRow}>
+            <View
+              style={[styles.badge, { backgroundColor: currentCategory.bg }]}
+            >
+              <Ionicons
+                name={currentCategory.icon as any}
+                size={16}
+                color={currentCategory.color}
+              />
+              <Text
+                style={[styles.badgeText, { color: currentCategory.color }]}
+              >
+                {currentCategory.label}
+              </Text>
+            </View>
+
             <TouchableOpacity
-              style={detailStyles.notesCard}
-              onPress={() => setShowNotesModal(true)}
+              style={[
+                styles.badge,
+                { backgroundColor: currentStatus.color + "20" },
+              ]}
+              onPress={handleToggleStatus}
               activeOpacity={0.7}
             >
-              <Text style={detailStyles.notesText}>{task.notes}</Text>
-              <View style={detailStyles.notesFooter}>
-                <Text style={detailStyles.notesMeta}>
-                  {notesWordCount} kata
-                </Text>
-                <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
-              </View>
+              <Ionicons
+                name={currentStatus.icon as any}
+                size={16}
+                color={currentStatus.color}
+              />
+              <Text style={[styles.badgeText, { color: currentStatus.color }]}>
+                {currentStatus.label}
+              </Text>
             </TouchableOpacity>
+          </View>
+
+          {/* Title */}
+          <Text style={[styles.title, isCompleted && styles.completedTitle]}>
+            {task.title}
+          </Text>
+
+          {/* Description */}
+          {task.description && (
+            <Text style={styles.description}>{task.description}</Text>
+          )}
+        </View>
+
+        {/* Time Remaining Card - Only if not completed */}
+        {!isCompleted && task.category === "tugas" && (
+          <View
+            style={[
+              styles.card,
+              styles.timeCard,
+              { borderLeftColor: timeRemaining.color },
+            ]}
+          >
+            <View style={styles.timeCardHeader}>
+              <Ionicons
+                name={timeRemaining.icon as any}
+                size={24}
+                color={timeRemaining.color}
+              />
+              <Text style={styles.timeCardLabel}>Sisa Waktu</Text>
+            </View>
+            <Text
+              style={[styles.timeCardValue, { color: timeRemaining.color }]}
+            >
+              {timeRemaining.text}
+            </Text>
           </View>
         )}
 
-        {/* Notes Editor Modal */}
-        <Modal
-          visible={showNotesModal}
-          animationType="slide"
-          presentationStyle="fullScreen"
-          onRequestClose={() => setShowNotesModal(false)}
-        >
-          <SafeAreaView style={modalStyles.notesEditorContainer}>
-            <View style={modalStyles.notesEditorHeader}>
-              <TouchableOpacity
-                style={modalStyles.notesEditorBackBtn}
-                onPress={() => setShowNotesModal(false)}
+        {/* Deadline Info Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardHeaderLeft}>
+              <Ionicons name="calendar" size={20} color="#007AFF" />
+              <Text style={styles.cardTitle}>
+                {task.category === "tugas" ? "Deadline" : "Tanggal & Waktu"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.infoGrid}>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Tanggal</Text>
+              <Text
+                style={[
+                  styles.infoValue,
+                  task.category === "tugas" &&
+                    isOverdue &&
+                    !isCompleted &&
+                    styles.overdueText,
+                ]}
               >
-                <Ionicons name="chevron-back" size={28} color="#007AFF" />
-                <Text style={modalStyles.notesEditorBackText}>Kembali</Text>
-              </TouchableOpacity>
-              <View style={modalStyles.notesEditorInfo}>
-                <Text style={modalStyles.notesEditorWordCount}>
-                  {notesWordCount} kata
-                </Text>
-              </View>
+                {task.repeatOption === "yearly"
+                  ? deadline.toLocaleDateString("id-ID", {
+                      day: "numeric",
+                      month: "long",
+                    })
+                  : task.repeatOption === "monthly"
+                    ? deadline.toLocaleDateString("id-ID", {
+                        day: "numeric",
+                        month: "long",
+                      })
+                    : task.repeatOption === "weekly"
+                      ? deadline.toLocaleDateString("id-ID", {
+                          weekday: "long",
+                        })
+                      : task.repeatOption === "daily"
+                        ? "Setiap hari!"
+                        : deadline.toLocaleDateString("id-ID", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          })}
+              </Text>
             </View>
 
-            <ScrollView
-              style={modalStyles.notesEditorBody}
-              keyboardShouldPersistTaps="handled"
-            >
-              <TextInput
-                style={modalStyles.notesEditorInput}
-                value={task.notes || ""}
-                onChangeText={handleUpdateNotes}
-                placeholder="Mulai menulis catatan Anda..."
-                placeholderTextColor="#C7C7CC"
-                multiline
-                autoFocus
-                textAlignVertical="top"
-              />
-            </ScrollView>
-
-            <View style={modalStyles.notesEditorToolbar}>
-              <TouchableOpacity
-                style={modalStyles.notesToolbarBtn}
-                onPress={() => handleUpdateNotes("")}
-              >
-                <Ionicons name="trash-outline" size={24} color="#FF3B30" />
-              </TouchableOpacity>
-              <View style={modalStyles.notesToolbarDivider} />
-              <Text style={modalStyles.notesToolbarDate}>
-                {new Date().toLocaleString("id-ID", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Waktu</Text>
+              <Text style={styles.infoValue}>
+                {deadline.toLocaleTimeString("id-ID", {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
               </Text>
             </View>
-          </SafeAreaView>
-        </Modal>
-
-        {/* Date/Time/Repeat Section */}
-        <View style={detailStyles.section}>
-          <Text style={detailStyles.sectionTitle}>
-            {task.category === "tugas" ? "DEADLINE" : "JADWAL"}
-          </Text>
-          <View style={detailStyles.infoRow}>
-            <Ionicons
-              name="calendar-outline"
-              size={20}
-              color={isOverdue ? "#FF3B30" : "#007AFF"}
-            />
-            <Text
-              style={[
-                detailStyles.infoText,
-                isOverdue && { color: "#FF3B30", fontWeight: "600" },
-              ]}
-            >
-              {deadline.toLocaleDateString("id-ID", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-              {isOverdue && " (Terlambat)"}
-            </Text>
           </View>
-
-          {/* Time & Repeat - Only for Jadwal & Kegiatan */}
-          {task.category !== "tugas" &&
-            (task.time || task.repeatOption !== "none") && (
-              <View
-                style={[detailStyles.timeRepeatContainer, { marginTop: 12 }]}
-              >
-                {task.time && (
-                  <View
-                    style={[
-                      detailStyles.timeRepeatBadge,
-                      detailStyles.timeBadge,
-                    ]}
-                  >
-                    <Ionicons name="time-outline" size={18} color="#007AFF" />
-                    <Text
-                      style={[
-                        detailStyles.timeRepeatText,
-                        detailStyles.timeText,
-                      ]}
-                    >
-                      {task.time}
-                    </Text>
-                  </View>
-                )}
-
-                {task.repeatOption && task.repeatOption !== "none" && (
-                  <View
-                    style={[
-                      detailStyles.timeRepeatBadge,
-                      detailStyles.repeatBadge,
-                    ]}
-                  >
-                    <Ionicons name="repeat" size={18} color="#F57C00" />
-                    <Text
-                      style={[
-                        detailStyles.timeRepeatText,
-                        detailStyles.repeatText,
-                      ]}
-                    >
-                      {getRepeatLabel(task.repeatOption)}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
         </View>
 
-        {/* Reminder Info */}
+        {/* Reminder Card */}
         {task.reminderEnabled && (
-          <View style={detailStyles.section}>
-            <Text style={detailStyles.sectionTitle}>PENGINGAT</Text>
-            <View style={detailStyles.reminderInfo}>
-              <Ionicons name="notifications" size={20} color="#007AFF" />
-              <Text style={detailStyles.reminderInfoText}>
-                {task.reminderDaysBefore === 0
-                  ? "Pada hari yang sama"
-                  : `${task.reminderDaysBefore} hari sebelumnya`}{" "}
-                pukul {task.reminderTime}
-                {task.category === "tugas" &&
-                  task.reminderFrequency !== "once" && (
-                    <Text style={{ fontWeight: "600" }}>
-                      {"\n"}
-                      {task.reminderFrequency === "daily"
-                        ? "• Setiap hari"
-                        : task.reminderFrequency === "every_2_days"
-                          ? "• 2 hari sekali"
-                          : task.reminderFrequency === "every_3_days"
-                            ? "• 3 hari sekali"
-                            : "• Mingguan"}
-                    </Text>
-                  )}
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardHeaderLeft}>
+                <Ionicons name="notifications" size={20} color="#FF9500" />
+                <Text style={styles.cardTitle}>Pengingat</Text>
+              </View>
+              {notificationCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>
+                    {notificationCount} notifikasi
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.reminderContent}>
+              <View style={styles.reminderRow}>
+                <Ionicons name="time-outline" size={18} color="#8E8E93" />
+                <Text style={styles.reminderText}>
+                  Pengingat{" "}
+                  {task.reminderDaysBefore === 0
+                    ? "hari yang sama"
+                    : `${task.reminderDaysBefore} hari sebelumnya`}
+                </Text>
+              </View>
+
+              <View style={styles.reminderRow}>
+                <Ionicons name="alarm-outline" size={18} color="#8E8E93" />
+                <Text style={styles.reminderText}>
+                  Pukul {task.reminderTime}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Repeat Card - for all categories */}
+        {task.repeatEnabled && task.repeatOption !== "none" && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardHeaderLeft}>
+                <Ionicons name="repeat" size={20} color="#F57C00" />
+                <Text style={styles.cardTitle}>Pengulangan</Text>
+              </View>
+            </View>
+
+            <View style={styles.repeatContent}>
+              <View style={styles.repeatBadge}>
+                <Ionicons name="sync" size={16} color="#F57C00" />
+                <Text style={styles.repeatBadgeText}>
+                  {task.repeatOption === "daily" && "Setiap Hari"}
+                  {task.repeatOption === "weekly" && "Setiap Minggu"}
+                  {task.repeatOption === "monthly" && "Setiap Bulan"}
+                  {task.repeatOption === "yearly" && "Setiap Tahun"}
+                  {task.repeatOption === "custom" &&
+                    `Setiap ${task.customInterval} ${task.customUnit}`}
+                </Text>
+              </View>
+
+              <Text style={styles.repeatEndText}>
+                {task.endOption === "never"
+                  ? "Berulang tanpa batas (sampai dihapus)"
+                  : "Berulang sampai deadline"}
               </Text>
             </View>
           </View>
         )}
 
-        {/* Subtasks - Only for Tugas */}
+        {/* Notes Card - Only for Tugas */}
         {task.category === "tugas" && (
-          <View style={detailStyles.section}>
-            <View style={detailStyles.subtaskHeader}>
-              <Text style={detailStyles.sectionTitle}>SUBTASK</Text>
-              {subtasks.length > 0 && (
-                <View style={detailStyles.progressBadge}>
-                  <Text style={detailStyles.progressText}>
-                    {completedCount}/{subtasks.length}
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardHeaderLeft}>
+                <Ionicons name="document-text" size={20} color="#7B1FA2" />
+                <Text style={styles.cardTitle}>Catatan</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowNotesModal(true)}>
+                <Ionicons name="pencil" size={20} color="#007AFF" />
+              </TouchableOpacity>
+            </View>
+
+            {task.notes ? (
+              <TouchableOpacity
+                style={styles.notesContent}
+                onPress={() => setShowNotesModal(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.notesText} numberOfLines={5}>
+                  {task.notes}
+                </Text>
+                <View style={styles.notesFooter}>
+                  <Text style={styles.notesWordCount}>
+                    {notesWordCount} kata
                   </Text>
-                  <View style={detailStyles.progressBarContainer}>
+                  <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.notesEmpty}
+                onPress={() => setShowNotesModal(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add-circle-outline" size={32} color="#C7C7CC" />
+                <Text style={styles.notesEmptyText}>
+                  Tap untuk menambah catatan
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {/* Subtasks Card - Only for Tugas */}
+        {task.category === "tugas" && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardHeaderLeft}>
+                <Ionicons name="list" size={20} color="#1976D2" />
+                <Text style={styles.cardTitle}>Subtask</Text>
+              </View>
+              {totalSubtasks > 0 && (
+                <View style={styles.progressContainer}>
+                  <Text style={styles.progressText}>
+                    {completedSubtasks}/{totalSubtasks}
+                  </Text>
+                  <View style={styles.progressBarBg}>
                     <View
                       style={[
-                        detailStyles.progressBar,
-                        { width: `${progress}%` },
+                        styles.progressBarFill,
+                        { width: `${subtaskProgress}%` },
                       ]}
                     />
                   </View>
@@ -2272,66 +578,44 @@ export default function TaskDetailScreen() {
               )}
             </View>
 
-            {/* Add Subtask */}
-            <View style={detailStyles.addSubtaskRow}>
-              <TextInput
-                style={detailStyles.addSubtaskInput}
-                value={newSubtask}
-                onChangeText={setNewSubtask}
-                placeholder="Tambah subtask baru..."
-                placeholderTextColor="#C7C7CC"
-                onSubmitEditing={handleAddSubtask}
-                returnKeyType="done"
-              />
-              <TouchableOpacity
-                style={detailStyles.addSubtaskIconBtn}
-                onPress={handleAddSubtask}
-              >
-                <Ionicons name="add-circle" size={32} color="#007AFF" />
-              </TouchableOpacity>
-            </View>
-
             {/* Subtask List */}
-            {subtasks.map((subtask: any) => (
-              <View key={subtask.id} style={detailStyles.subtaskItem}>
-                <TouchableOpacity
-                  style={detailStyles.subtaskCheckbox}
-                  onPress={() =>
-                    handleToggleSubtask(subtask.id, subtask.completed ? 0 : 1)
-                  }
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={
-                      subtask.completed ? "checkmark-circle" : "ellipse-outline"
-                    }
-                    size={24}
-                    color={subtask.completed ? "#34C759" : "#C7C7CC"}
-                  />
-                </TouchableOpacity>
-                <Text
-                  style={[
-                    detailStyles.subtaskText,
-                    subtask.completed && detailStyles.subtaskCompleted,
-                  ]}
-                >
-                  {subtask.title}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => handleDeleteSubtask(subtask.id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-                </TouchableOpacity>
+            {task.subtasks && task.subtasks.length > 0 ? (
+              <View style={styles.subtaskList}>
+                {task.subtasks.map((subtask: any, index: number) => (
+                  <TouchableOpacity
+                    key={subtask.id}
+                    style={[
+                      styles.subtaskItem,
+                      index === task.subtasks.length - 1 &&
+                        styles.subtaskItemLast,
+                    ]}
+                    onPress={() => handleToggleSubtask(subtask.id)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={
+                        subtask.completed
+                          ? "checkmark-circle"
+                          : "ellipse-outline"
+                      }
+                      size={24}
+                      color={subtask.completed ? "#34C759" : "#C7C7CC"}
+                    />
+                    <Text
+                      style={[
+                        styles.subtaskText,
+                        subtask.completed && styles.subtaskTextCompleted,
+                      ]}
+                    >
+                      {subtask.title}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            ))}
-
-            {subtasks.length === 0 && (
-              <View style={detailStyles.emptySubtasks}>
-                <Ionicons name="list-outline" size={48} color="#C7C7CC" />
-                <Text style={detailStyles.emptySubtasksText}>
-                  Belum ada subtask
-                </Text>
+            ) : (
+              <View style={styles.subtaskEmpty}>
+                <Ionicons name="checkbox-outline" size={48} color="#C7C7CC" />
+                <Text style={styles.subtaskEmptyText}>Belum ada subtask</Text>
               </View>
             )}
           </View>
@@ -2340,16 +624,528 @@ export default function TaskDetailScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Edit Modal */}
-      <EditTaskModal
-        visible={editModalVisible}
-        onClose={() => {
-          setEditModalVisible(false);
-          loadTask();
-        }}
-        task={task}
-        onUpdate={handleUpdateTask}
-      />
-    </SafeAreaView>
+      {/* Notes Editor Modal */}
+      <Modal
+        visible={showNotesModal}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowNotesModal(false)}
+      >
+        {/* Safe Area View  */}
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              style={styles.modalBackButton}
+              onPress={() => setShowNotesModal(false)}
+            >
+              <Ionicons name="chevron-back" size={28} color="#007AFF" />
+              <Text style={styles.modalBackText}>Kembali</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalSaveButton}
+              onPress={handleSaveNotes}
+            >
+              <Text style={styles.modalSaveText}>Simpan</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modalMeta}>
+            <Text style={styles.modalWordCount}>
+              {
+                editingNotes
+                  .trim()
+                  .split(/\s+/)
+                  .filter((w: string) => w.length > 0).length
+              }{" "}
+              kata
+            </Text>
+          </View>
+
+          <ScrollView style={styles.modalBody}>
+            <TextInput
+              style={styles.modalInput}
+              value={editingNotes}
+              onChangeText={setEditingNotes}
+              placeholder="Mulai menulis catatan Anda..."
+              placeholderTextColor="#C7C7CC"
+              multiline
+              autoFocus
+              textAlignVertical="top"
+            />
+          </ScrollView>
+        </View>
+      </Modal>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F5F7FA",
+    paddingVertical: 20,
+  },
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  loadingText: {
+    fontSize: 16,
+    color: "#8E8E93",
+    fontWeight: "500",
+  },
+
+  // Header
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+
+  backButton: {
+    padding: 4,
+  },
+
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#1C1C1E",
+    flex: 1,
+    textAlign: "center",
+  },
+
+  deleteButton: {
+    padding: 4,
+  },
+
+  // ScrollView
+  scrollView: {
+    flex: 1,
+  },
+
+  scrollContent: {
+    paddingBottom: 20,
+  },
+
+  // Hero Section
+  heroSection: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+
+  alertBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+
+  alertBannerText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+
+  badgeRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 16,
+  },
+
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+
+  badgeText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#1C1C1E",
+    lineHeight: 34,
+    marginBottom: 8,
+  },
+
+  completedTitle: {
+    textDecorationLine: "line-through",
+    color: "#8E8E93",
+  },
+
+  description: {
+    fontSize: 16,
+    color: "#6C757D",
+    lineHeight: 24,
+  },
+
+  // Time Card
+  timeCard: {
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 20,
+    marginTop: 16,
+    borderRadius: 16,
+    padding: 20,
+    borderLeftWidth: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+
+  timeCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 8,
+  },
+
+  timeCardLabel: {
+    fontSize: 14,
+    color: "#8E8E93",
+    fontWeight: "500",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+
+  timeCardValue: {
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+
+  // Card
+  card: {
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 20,
+    marginTop: 16,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+
+  cardHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1C1C1E",
+  },
+
+  // Info Grid
+  infoGrid: {
+    gap: 12,
+  },
+
+  infoItem: {
+    backgroundColor: "#F9FAFB",
+    padding: 14,
+    borderRadius: 12,
+  },
+
+  infoLabel: {
+    fontSize: 12,
+    color: "#8E8E93",
+    fontWeight: "500",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+    marginBottom: 6,
+  },
+
+  infoValue: {
+    fontSize: 15,
+    color: "#1C1C1E",
+    fontWeight: "600",
+  },
+
+  overdueText: {
+    color: "#FF3B30",
+  },
+
+  // Reminder
+  reminderContent: {
+    gap: 12,
+  },
+
+  reminderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#F9FAFB",
+    padding: 12,
+    borderRadius: 10,
+  },
+
+  reminderText: {
+    fontSize: 15,
+    color: "#1C1C1E",
+    flex: 1,
+  },
+
+  notificationBadge: {
+    backgroundColor: "#FF9500",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+
+  notificationBadgeText: {
+    fontSize: 11,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+
+  // Repeat
+  repeatContent: {
+    gap: 12,
+  },
+
+  repeatBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FFF3E0",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+  },
+
+  repeatBadgeText: {
+    fontSize: 14,
+    color: "#F57C00",
+    fontWeight: "600",
+  },
+
+  repeatEndText: {
+    fontSize: 13,
+    color: "#8E8E93",
+    fontStyle: "italic",
+  },
+
+  // Notes
+  notesContent: {
+    backgroundColor: "#FAFAFA",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+  },
+
+  notesText: {
+    fontSize: 15,
+    color: "#1C1C1E",
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+
+  notesFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E5EA",
+  },
+
+  notesWordCount: {
+    fontSize: 12,
+    color: "#8E8E93",
+    fontWeight: "500",
+  },
+
+  notesEmpty: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+    backgroundColor: "#FAFAFA",
+    borderRadius: 12,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: "#E5E5EA",
+    gap: 12,
+  },
+
+  notesEmptyText: {
+    fontSize: 14,
+    color: "#8E8E93",
+  },
+
+  // Subtasks
+  progressContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  progressText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#007AFF",
+  },
+
+  progressBarBg: {
+    width: 60,
+    height: 6,
+    backgroundColor: "#E5E5EA",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+
+  progressBarFill: {
+    height: "100%",
+    backgroundColor: "#007AFF",
+    borderRadius: 3,
+  },
+
+  subtaskList: {
+    gap: 2,
+  },
+
+  subtaskItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+
+  subtaskItemLast: {
+    borderBottomWidth: 0,
+  },
+
+  subtaskText: {
+    flex: 1,
+    fontSize: 15,
+    color: "#1C1C1E",
+    lineHeight: 20,
+  },
+
+  subtaskTextCompleted: {
+    textDecorationLine: "line-through",
+    color: "#8E8E93",
+  },
+
+  subtaskEmpty: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+    gap: 12,
+  },
+
+  subtaskEmptyText: {
+    fontSize: 14,
+    color: "#8E8E93",
+  },
+
+  // Modal
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+
+  modalBackButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+
+  modalBackText: {
+    fontSize: 17,
+    color: "#007AFF",
+    fontWeight: "500",
+  },
+
+  modalSaveButton: {
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+
+  modalSaveText: {
+    fontSize: 16,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+
+  modalMeta: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: "#F9FAFB",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+
+  modalWordCount: {
+    fontSize: 13,
+    color: "#8E8E93",
+    fontWeight: "500",
+  },
+
+  modalBody: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+
+  modalInput: {
+    fontSize: 16,
+    color: "#1C1C1E",
+    lineHeight: 24,
+    minHeight: 400,
+  },
+});

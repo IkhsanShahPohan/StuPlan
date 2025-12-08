@@ -1,4 +1,5 @@
-import { useTasks } from "@/hooks/useTasks";
+import { useTask } from "@/hooks/useTasks";
+import { useAuth } from "@/lib/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -46,7 +47,9 @@ const categoryConfig = {
 
 const TaskCalendar = () => {
   const router = useRouter();
-  const { tasks } = useTasks();
+  const { user } = useAuth();
+  const userId = user?.id;
+  const { tasks } = useTask(userId);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);

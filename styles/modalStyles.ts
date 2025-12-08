@@ -9,6 +9,7 @@ export const modalStyles = StyleSheet.create({
   modalSafe: {
     flex: 1,
     backgroundColor: "#F2F2F7",
+    paddingVertical: 30
   },
   modalHeader: {
     flexDirection: "row",
@@ -88,8 +89,9 @@ export const modalStyles = StyleSheet.create({
   },
   filterDateText: {
     fontSize: 17,
-    color: "#007AFF",
+    color: "#3A3A3C", // warna teks iOS (abu gelap)
   },
+
   filterActionsRow: {
     flexDirection: "row",
     gap: 12,

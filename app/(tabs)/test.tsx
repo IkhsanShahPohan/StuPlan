@@ -1,12 +1,12 @@
 import { tasks, users } from "@/db/schema"; // schema kamu
 import { supabase } from "@/lib/supabase";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import * as Notifications from "expo-notifications";
 import { useSQLiteContext } from "expo-sqlite";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function InsertUsersScreen() {
-  // Ambil DB dari SQLiteProvider
   const sqlite = useSQLiteContext();
   const db = drizzle(sqlite);
 
@@ -43,7 +43,36 @@ export default function InsertUsersScreen() {
     try {
       const result = await db.select().from(tasks);
       //   setRows(result);
-      console.log("Tasks:", result);
+      console.log("Tasks:", JSON.stringify(result, null, 2));
+    } catch (error) {
+      console.error("Select error:", error);
+    }
+  };
+
+  const clearUserFields = async (userId: string) => {
+    try {
+      await db
+        .update(users)
+        .set({
+          fullName: null,
+          birthDate: null,
+          educationLevel: null,
+          institution: null,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(users.id, userId));
+
+      console.log("User fields cleared!");
+    } catch (error) {
+      console.error("Error clearing user fields:", error);
+    }
+  };
+
+  const loadProfile = async () => {
+    try {
+      const result = await db.select().from(users);
+      //   setRows(result);
+      console.log("User:", JSON.stringify(result, null, 2));
     } catch (error) {
       console.error("Select error:", error);
     }
@@ -68,6 +97,7 @@ export default function InsertUsersScreen() {
   };
 
   async function schedulePushNotification() {
+    console.log("reulst");
     const result = await Notifications.scheduleNotificationAsync({
       content: {
         title: "Hei man, how is your day?",
@@ -99,12 +129,7 @@ export default function InsertUsersScreen() {
   }
 
   async function cancelAllNotifications() {
-    const arr = [
-      "c5a0c43c-b743-4616-b8c5-3f2c34e93661",
-      "263a754c-69a7-4247-b1b2-3cd405c611d2",
-      "4026d6a8-6102-416c-8535-0190e71ec971",
-      "94284dc6-91c7-48ae-88f1-4b191225a2ef",
-    ];
+    const arr = ["c613a295-3fbe-499a-b920-1897a9a1b545"];
 
     for (const id of arr) {
       await scheduleAndCancel(id);
@@ -133,28 +158,57 @@ export default function InsertUsersScreen() {
   }
 
   return (
-    // <SafeAreaView>
-    <View style={{ padding: 20 }}>
-      <Text style={{ fontSize: 20, marginBottom: 20, gap: 20 }}>
-        Insert Sample Users
-      </Text>
-
-      <TouchableOpacity
-        style={styles.button}
-        activeOpacity={0.7}
-        onPress={seeAllNotification}
-      >
-        <Text style={styles.buttonText}>Insert Users</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.button}
-        activeOpacity={0.7}
-        onPress={checkNotificatinDaily}
-      >
-        <Text style={styles.buttonText}>Hapus notif</Text>
-      </TouchableOpacity>
+    <View>
+      <View style={{ padding: 20 }}>
+        <Text style={{ fontSize: 20, marginBottom: 20, gap: 20 }}>
+          Insert Sample Users
+        </Text>
+        <TouchableOpacity
+          style={styles.button}
+          activeOpacity={0.7}
+          onPress={loadTasks}
+        >
+          <Text style={styles.buttonText}>Tasks</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          activeOpacity={0.7}
+          onPress={loadProfile}
+        >
+          <Text style={styles.buttonText}>Users</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          activeOpacity={0.7}
+          onPress={seeAllNotification}
+        >
+          <Text style={styles.buttonText}>See All Notification</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          activeOpacity={0.7}
+          onPress={schedulePushNotification}
+        >
+          <Text style={styles.buttonText}>Schedule Notification</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          activeOpacity={0.7}
+          onPress={() =>
+            clearUserFields("34faaf39-2208-4b11-a733-c62885210a62")
+          }
+        >
+          <Text style={styles.buttonText}>Delete User Information</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          activeOpacity={0.7}
+          onPress={cancelAllNotifications}
+        >
+          <Text style={styles.buttonText}>Cancel Notification</Text>
+        </TouchableOpacity>
+      </View>
     </View>
-    // </SafeAreaView>
   );
 }
 const styles = StyleSheet.create({
