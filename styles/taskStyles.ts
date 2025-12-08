@@ -1,274 +1,416 @@
 import { StyleSheet } from "react-native";
 
-export const taskStyles = StyleSheet.create({
+export const styles = StyleSheet.create({
   // Container
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F8F9FA",
   },
 
-  // Header
+  // Header - COMPACT VERSION
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingTop: 50,
+    paddingBottom: 12,
     backgroundColor: "#FFFFFF",
-    borderBottomWidth: 0.5,
+    borderBottomWidth: 1,
     borderBottomColor: "#E5E5EA",
   },
   headerTitle: {
-    fontSize: 34,
+    fontSize: 28,
     fontWeight: "700",
-    color: "#000000",
-    letterSpacing: 0.4,
+    color: "#1C1C1E",
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 15,
+    fontSize: 13,
     color: "#8E8E93",
     marginTop: 2,
+    fontWeight: "500",
   },
-  filterBtn: {
-    width: 44,
-    height: 44,
+  filterIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F2F2F7",
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 22,
-    backgroundColor: "#F2F2F7",
+    position: "relative",
+  },
+  filterBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#FF3B30",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
 
-  // Search
+  // Search - COMPACT
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
     marginHorizontal: 16,
-    marginBottom: 20,
+    marginTop: 12,
+    marginBottom: 8,
     paddingHorizontal: 12,
-    height: 44,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
-    color: "#000000",
+    fontSize: 15,
+    color: "#1C1C1E",
+    padding: 0,
+    fontWeight: "400",
+  },
+
+  // Filter Section - COMPACT
+  filterSection: {
+    backgroundColor: "#FFFFFF",
+    paddingTop: 8,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F2F2F7",
+  },
+  filterLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#8E8E93",
+    marginLeft: 20,
+    marginBottom: 6,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  filterScrollContent: {
+    paddingHorizontal: 16,
+    gap: 6,
+  },
+  filterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: "#F2F2F7",
+    marginRight: 6,
+    gap: 5,
+    borderWidth: 1.5,
+    borderColor: "transparent",
+  },
+  filterChipActive: {
+    backgroundColor: "#007AFF",
+    borderColor: "#007AFF",
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#8E8E93",
+  },
+  filterChipTextActive: {
+    color: "#FFFFFF",
+  },
+
+  // Active Date Filter - COMPACT
+  activeDateFilter: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E3F2FD",
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    gap: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "#BBDEFB",
+  },
+  activeDateFilterText: {
+    fontSize: 12,
+    color: "#007AFF",
+    fontWeight: "600",
   },
 
   // Content
   content: {
     flex: 1,
+  },
+  contentContainer: {
+    paddingTop: 12,
     paddingHorizontal: 16,
+  },
+
+  // Task Card - SLIGHTLY SMALLER
+  taskCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+    position: "relative",
+    overflow: "hidden",
+  },
+  taskCardCompleted: {
+    backgroundColor: "#F9FAFB",
+    borderColor: "#E0E0E0",
+    opacity: 0.75,
+  },
+  taskCardOverdue: {
+    borderColor: "#FFE5E5",
+    borderWidth: 1.5,
+    backgroundColor: "#FFFBFB",
+  },
+
+  // Task Card Header
+  taskCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 6,
+  },
+  taskTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: 8,
+  },
+  statusIndicator: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: "#007AFF",
+    marginRight: 8,
+    flexShrink: 0,
+  },
+  statusIndicatorCompleted: {
+    backgroundColor: "#34C759",
+  },
+  statusIndicatorOverdue: {
+    backgroundColor: "#FF3B30",
+  },
+  taskTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1C1C1E",
+    flex: 1,
+    lineHeight: 20,
+  },
+  taskTitleCompleted: {
+    color: "#8E8E93",
+    textDecorationLine: "line-through",
+  },
+
+  // Category Badge
+  categoryBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    gap: 3,
+  },
+  categoryBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 0.2,
+  },
+
+  // Task Description
+  taskDescription: {
+    fontSize: 13,
+    color: "#64748B",
+    lineHeight: 18,
+    marginBottom: 8,
+    fontWeight: "400",
+  },
+  taskDescriptionCompleted: {
+    color: "#A0A0A0",
+  },
+
+  // Task Meta
+  taskMeta: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 2,
+  },
+  taskMetaLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    flexWrap: "wrap",
+    gap: 5,
+  },
+
+  // Meta Chips - SMALLER
+  metaChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: "#F2F2F7",
+    gap: 3,
+  },
+  metaChipOverdue: {
+    backgroundColor: "#FFE5E5",
+  },
+  metaChipReminder: {
+    backgroundColor: "#E3F2FD",
+  },
+  metaChipRepeat: {
+    backgroundColor: "#FFF3E0",
+  },
+  metaChipText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  metaChipTextOverdue: {
+    color: "#FF3B30",
+  },
+  metaChipTextCompleted: {
+    color: "#A0A0A0",
+  },
+  metaChipTextReminder: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#007AFF",
+  },
+  metaChipTextRepeat: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#F57C00",
+  },
+
+  // Task Actions - SMALLER
+  taskActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginLeft: 6,
+  },
+  confirmButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#E8F5E9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  deleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFEBEE",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // Completed Overlay - SMALLER
+  completedOverlay: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+  },
+  completedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E8F5E9",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    gap: 3,
+    borderWidth: 1,
+    borderColor: "#C8E6C9",
+  },
+  completedBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#34C759",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+
+  // Overdue Badge - SMALLER
+  overdueBadge: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FF3B30",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderTopRightRadius: 14,
+    borderBottomLeftRadius: 10,
+    gap: 3,
+  },
+  overdueBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
 
   // Empty State
   emptyState: {
-    alignItems: "center",
+    flex: 1,
     justifyContent: "center",
-    paddingVertical: 80,
-  },
-  emptyText: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: "#8E8E93",
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 15,
-    color: "#C7C7CC",
-    marginTop: 8,
-    textAlign: "center",
+    alignItems: "center",
+    paddingVertical: 60,
     paddingHorizontal: 40,
   },
-
-  // Task Card
-  taskCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 0.5,
-    borderColor: "#F0F0F0",
-  },
-  taskHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 10,
-  },
-  taskTitle: {
-    flex: 1,
-    fontSize: 17,
+  emptyText: {
+    fontSize: 18,
     fontWeight: "600",
-    color: "#000000",
-  },
-  taskDesc: {
-    fontSize: 15,
     color: "#8E8E93",
-    lineHeight: 20,
-    marginBottom: 12,
-    paddingLeft: 20,
+    marginTop: 12,
+    marginBottom: 6,
   },
-  taskFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingLeft: 20,
-    paddingTop: 8,
-    borderTopWidth: 0.5,
-    borderTopColor: "#F0F0F0",
-  },
-  deadlineRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F9F9F9",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  deadlineText: {
+  emptySubtext: {
     fontSize: 13,
-    color: "#8E8E93",
-    marginLeft: 6,
-    fontWeight: "500",
-  },
-  overdueText: {
-    color: "#FF3B30",
-    fontWeight: "600",
-  },
-  deleteBtn: {
-    width: 36,
-    height: 36,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 18,
-    backgroundColor: "#FFF5F5",
+    color: "#A0A0A0",
+    textAlign: "center",
+    lineHeight: 18,
   },
 
   // FAB
   fab: {
     position: "absolute",
+    bottom: 20,
     right: 20,
-    bottom: 100,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "#007AFF",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#007AFF",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
   },
 
-  // Category Filter
-  categoryFilterContainer: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#E5E5EA",
-    flexDirection: "row",
-    justifyContent: "center", // isi horizontal
-    alignItems: "center", // isi vertical
-    width: "92%",
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    alignSelf: "center", // <--- INI WAJIB utk center horizontal!
-  },
-  categoryFilterRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  categoryFilterBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#F2F2F7",
-    borderWidth: 1,
-    borderColor: "#E5E5EA",
-  },
-  categoryFilterBtnActive: {
-    backgroundColor: "#007AFF",
-    borderColor: "#007AFF",
-  },
-  categoryFilterText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#8E8E93",
-  },
-  categoryFilterTextActive: {
-    color: "#FFFFFF",
-  },
-
-  // Category Badge
-  categoryBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  categoryBadgeTugas: {
-    backgroundColor: "#E3F2FD",
-  },
-  categoryBadgeJadwal: {
-    backgroundColor: "#FFF3E0",
-  },
-  categoryBadgeKegiatan: {
-    backgroundColor: "#F3E5F5",
-  },
-  categoryBadgeText: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  categoryBadgeTextTugas: {
-    color: "#1976D2",
-  },
-  categoryBadgeTextJadwal: {
-    color: "#F57C00",
-  },
-  categoryBadgeTextKegiatan: {
-    color: "#7B1FA2",
-  },
-
-  // Loading
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F2F2F7",
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#8E8E93",
-    fontWeight: "500",
+  // Bottom Spacer
+  bottomSpacer: {
+    height: 80,
   },
 });

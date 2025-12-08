@@ -28,7 +28,7 @@ export default function ForgotPassword() {
     if (!email) {
       Alert.alert("Please enter your email");
       return;
-    }
+    } 
 
     try {
       setLoading(true);

@@ -47,10 +47,10 @@ export default function AuthLayout() {
 
     // Redirect notification
     function redirect(notification: Notifications.Notification) {
-      const id = notification.request.content.data?.id;
+      const id = notification.request.content.data?.taskId;
       console.log(id);
-      // router.push(`/tasks/${id}`);
-      router.push("/test");
+      if (!id) return;
+      router.push(`/tasks/${id}`);
     }
 
     const subscription = Notifications.addNotificationResponseReceivedListener(
