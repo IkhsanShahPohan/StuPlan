@@ -1,229 +1,365 @@
-import { Text, View, ScrollView, TouchableOpacity, Alert } from "react-native";
-import { useState } from "react";
+import { users } from "@/db/schema";
+import { useAuth } from "@/lib/AuthContext";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/expo-sqlite";
 import { useRouter } from "expo-router";
-import { supabase } from "../../lib/supabase";
-import { Feather } from "@expo/vector-icons";
+import { useSQLiteContext } from "expo-sqlite";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
 
-const profile = () => {
+interface UserProfile {
+  id: string;
+  email: string;
+  fullName: string | null;
+  birthDate: string | null;
+  educationLevel: string | null;
+  institution: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export default function ProfileScreen() {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const { user, signOut } = useAuth();
+  const sqlite = useSQLiteContext();
+  const db = drizzle(sqlite);
   const router = useRouter();
-  
-  const [userData] = useState({
-    nama: "Ikhsan Shah Pohan",
-    nim: "231402039",
-    jurusan: "Teknologi Informasi",
-    semester: "5",
-    email: "Ikhsanshah@students.usu.ac.id",
-    phone: "0895611248157",
-    angkatan: "2023"
-  });
 
-  const [stats] = useState({
-    totalTugas: 24,
-    tugasSelesai: 18,
-    totalPengeluaran: "Rp 2.450.000",
-    sisaBudget: "Rp 550.000"
-  });
+  useEffect(() => {
+    loadProfile();
+  }, []);
 
-  // Fungsi untuk mengambil inisial nama
-  const getInitials = (name: string) => {
-    const names = name.trim().split(' ');
-    if (names.length >= 2) {
-      return names[0][0] + names[1][0];
+  const loadProfile = async () => {
+    if (!user) return;
+
+    try {
+      const result = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1);
+
+      if (result.length > 0) {
+        setProfile(result[0] as UserProfile);
+      }
+    } catch (error) {
+      console.error("Error loading profile:", error);
+      Alert.alert("Error", "Gagal memuat profil");
+    } finally {
+      setLoading(false);
     }
-    return names[0][0];
   };
 
-  const handleLogout = async () => {
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadProfile();
+    setRefreshing(false);
+  };
+
+  const handleSignOut = () => {
     Alert.alert(
-      "Logout",
+      "Keluar dari Akun",
       "Apakah Anda yakin ingin keluar?",
       [
-        {
-          text: "Batal",
-          style: "cancel"
-        },
+        { text: "Batal", style: "cancel" },
         {
           text: "Keluar",
           style: "destructive",
           onPress: async () => {
-            const { error } = await supabase.auth.signOut();
-            if (!error) {
-              router.replace("/(auth)/sign-in");
-            }
-          }
-        }
-      ]
+            await signOut();
+          },
+        },
+      ],
+      { cancelable: true }
     );
   };
 
-  return (
-    <ScrollView className="flex-1 bg-purple-50">
-      {/* Header dengan Pattern Background */}
-      <View className="relative overflow-hidden bg-purple-700">
-        {/* Glassmorphism Blur Circles Background */}
-        <View className="absolute inset-0">
-          {/* Large circle top right */}
-          <View 
-            className="absolute bg-purple-500 rounded-full opacity-40"
-            style={{
-              width: 200,
-              height: 200,
-              right: -50,
-              top: -50,
-            }}
-          />
-          {/* Medium circle bottom left */}
-          <View 
-            className="absolute bg-purple-400 rounded-full opacity-30"
-            style={{
-              width: 150,
-              height: 150,
-              left: -30,
-              bottom: 20,
-            }}
-          />
-          {/* Small circle middle */}
-          <View 
-            className="absolute bg-purple-300 rounded-full opacity-25"
-            style={{
-              width: 120,
-              height: 120,
-              right: 60,
-              bottom: 80,
-            }}
-          />
-          {/* Tiny circle top left */}
-          <View 
-            className="absolute bg-purple-600 rounded-full opacity-35"
-            style={{
-              width: 80,
-              height: 80,
-              left: 40,
-              top: 60,
-            }}
-          />
-        </View>
+  const handleResetPassword = () => {
+    router.push("/reset-password");
+  };
 
-        {/* Profile Content */}
-        <View className="pt-12 pb-24 px-6">
-          <View className="items-center relative z-10">
-            {/* Avatar dengan Inisial */}
-            <View className="w-28 h-28 rounded-full bg-purple-200 items-center justify-center mb-3 shadow-lg border-4 border-white">
-              <Text className="text-purple-800 text-4xl font-bold">
-                {getInitials(userData.nama)}
+  const handleEditProfile = () => {
+    router.push("/edit-profile");
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "Belum diisi";
+    return dateString;
+  };
+
+  const calculateAge = (birthDate: string | null) => {
+    if (!birthDate) return null;
+    const [day, month, year] = birthDate.split("/").map(Number);
+    const birth = new Date(year, month - 1, day);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birth.getDate())
+    ) {
+      age--;
+    }
+    return age;
+  };
+
+  const getInitials = (name: string | null) => {
+    if (!name) return "?";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const getMemberSince = (createdAt: string | null) => {
+    if (!createdAt) return "Baru bergabung";
+    const date = new Date(createdAt);
+    const options: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+      month: "long",
+    };
+    return date.toLocaleDateString("id-ID", options);
+  };
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-gray-50 items-center justify-center">
+        <ActivityIndicator size="large" color="#000" />
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
+      <ScrollView
+        className="flex-1 bg-gray-50"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {/* Header Section */}
+        <Animated.View
+          entering={FadeInDown.duration(400)}
+          className="bg-white pt-16 pb-8 px-6 border-b border-gray-100"
+        >
+          <View className="items-center">
+            {/* Avatar */}
+            <View className="w-28 h-28 rounded-full bg-gradient-to-br from-gray-900 to-gray-700 items-center justify-center shadow-lg mb-4">
+              <Text className="text-white text-4xl font-bold">
+                {getInitials(profile?.fullName || null)}
               </Text>
             </View>
-            <Text className="text-white text-2xl font-bold">{userData.nama}</Text>
-            <Text className="text-purple-200 text-base mt-1">NIM: {userData.nim}</Text>
+
+            {/* Name & Email */}
+            <Text className="text-2xl font-bold text-gray-900 mb-1">
+              {profile?.fullName || "Nama belum diisi"}
+            </Text>
+            <Text className="text-base text-gray-500 mb-3">
+              {profile?.email}
+            </Text>
+
+            {/* Member Since Badge */}
+            <View className="bg-gray-100 px-4 py-2 rounded-full">
+              <Text className="text-xs font-medium text-gray-600">
+                Bergabung sejak {getMemberSince(profile?.createdAt || null)}
+              </Text>
+            </View>
           </View>
-        </View>
-      </View>
+        </Animated.View>
 
-      {/* Informasi Mahasiswa */}
-      <View className="px-6 -mt-16 mb-6">
-        <View className="bg-white rounded-2xl shadow-lg p-5">
-          <Text className="text-gray-800 font-bold text-lg mb-4">Informasi Mahasiswa</Text>
-          
-          <View className="mb-3">
-            <Text className="text-gray-500 text-sm mb-1">Jurusan</Text>
-            <Text className="text-gray-900 text-base font-medium">{userData.jurusan}</Text>
-          </View>
-
-          <View className="h-px bg-gray-100 my-3" />
-
-          <View className="mb-3">
-            <Text className="text-gray-500 text-sm mb-1">Semester</Text>
-            <Text className="text-gray-900 text-base font-medium">Semester {userData.semester}</Text>
-          </View>
-
-          <View className="h-px bg-gray-100 my-3" />
-
-          <View className="mb-3">
-            <Text className="text-gray-500 text-sm mb-1">Angkatan</Text>
-            <Text className="text-gray-900 text-base font-medium">{userData.angkatan}</Text>
-          </View>
-
-          <View className="h-px bg-gray-100 my-3" />
-
-          <View className="mb-3">
-            <Text className="text-gray-500 text-sm mb-1">Email</Text>
-            <Text className="text-gray-900 text-base font-medium">{userData.email}</Text>
-          </View>
-
-          <View className="h-px bg-gray-100 my-3" />
-
-          <View>
-            <Text className="text-gray-500 text-sm mb-1">No. Telepon</Text>
-            <Text className="text-gray-900 text-base font-medium">{userData.phone}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Menu Pengaturan */}
-      <View className="px-6 mb-6">
-        <View className="bg-white rounded-2xl shadow p-5 border border-purple-100">
-          <Text className="text-gray-800 font-bold text-lg mb-4">Pengaturan</Text>
-          
-          <TouchableOpacity 
-            className="flex-row items-center py-3 border-b border-gray-100"
-            onPress={() => Alert.alert("Edit Profile", "Fitur ini akan segera tersedia")}
-          >
-            <Feather name="user" size={22} color="#6b7280" style={{ marginRight: 12 }} />
-            <Text className="flex-1 text-gray-800 text-base font-medium">Edit Profile</Text>
-            <Feather name="chevron-right" size={22} color="#9ca3af" />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            className="flex-row items-center py-3 border-b border-gray-100"
-            onPress={() => router.push("/(auth)/reset-password")}
-          >
-            <Feather name="lock" size={22} color="#6b7280" style={{ marginRight: 12 }} />
-            <Text className="flex-1 text-gray-800 text-base font-medium">Ganti Password</Text>
-            <Feather name="chevron-right" size={22} color="#9ca3af" />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            className="flex-row items-center py-3 border-b border-gray-100"
-            onPress={() => Alert.alert("Notifikasi", "Pengaturan notifikasi akan segera tersedia")}
-          >
-            <Feather name="bell" size={22} color="#6b7280" style={{ marginRight: 12 }} />
-            <Text className="flex-1 text-gray-800 text-base font-medium">Notifikasi</Text>
-            <Feather name="chevron-right" size={22} color="#9ca3af" />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            className="flex-row items-center py-3 border-b border-gray-100"
-            onPress={() => Alert.alert("Kelola Budget", "Fitur manajemen budget akan segera tersedia")}
-          >
-            <Feather name="dollar-sign" size={22} color="#6b7280" style={{ marginRight: 12 }} />
-            <Text className="flex-1 text-gray-800 text-base font-medium">Kelola Budget</Text>
-            <Feather name="chevron-right" size={22} color="#9ca3af" />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            className="flex-row items-center py-3"
-            onPress={() => Alert.alert("Tentang StuPlan", "StuPlan v1.0.0\nAplikasi Pengelolaan Mahasiswa")}
-          >
-            <Feather name="info" size={22} color="#6b7280" style={{ marginRight: 12 }} />
-            <Text className="flex-1 text-gray-800 text-base font-medium">Tentang Aplikasi</Text>
-            <Feather name="chevron-right" size={22} color="#9ca3af" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Tombol Logout */}
-      <View className="px-6 mb-28">
-        <TouchableOpacity 
-          onPress={handleLogout}
-          className="bg-red-500 rounded-xl py-4 items-center shadow-lg active:opacity-90 flex-row justify-center"
-          activeOpacity={0.8}
+        {/* Profile Information Section */}
+        <Animated.View
+          entering={FadeInRight.delay(100).duration(400)}
+          className="px-6 py-6"
         >
-          <Feather name="log-out" size={20} color="white" style={{ marginRight: 8 }} />
-          <Text className="text-white font-bold text-base">Keluar dari Akun</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
-  );
-};
+          <Text className="text-lg font-bold text-gray-900 mb-4">
+            Informasi Pribadi
+          </Text>
 
-export default profile;
+          <View className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Full Name */}
+            <ProfileItem
+              icon="👤"
+              label="Nama Lengkap"
+              value={profile?.fullName || "Belum diisi"}
+            />
+
+            {/* Birth Date & Age */}
+            <ProfileItem
+              icon="🎂"
+              label="Tanggal Lahir"
+              value={formatDate(profile?.birthDate || null)}
+              badge={
+                profile?.birthDate
+                  ? `${calculateAge(profile.birthDate)} tahun`
+                  : undefined
+              }
+            />
+
+            {/* Education Level */}
+            <ProfileItem
+              icon="🎓"
+              label="Jenjang Pendidikan"
+              value={profile?.educationLevel || "Belum diisi"}
+            />
+
+            {/* Institution */}
+            <ProfileItem
+              icon="🏫"
+              label="Instansi"
+              value={profile?.institution || "Belum diisi"}
+              isLast
+            />
+          </View>
+        </Animated.View>
+
+        {/* Account Management Section */}
+        <Animated.View
+          entering={FadeInRight.delay(200).duration(400)}
+          className="px-6 pb-6"
+        >
+          <Text className="text-lg font-bold text-gray-900 mb-4">
+            Pengaturan Akun
+          </Text>
+
+          <View className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+            {/* Edit Profile */}
+            <ActionItem
+              icon="✏"
+              label="Edit Profil"
+              description="Perbarui informasi pribadi Anda"
+              onPress={handleEditProfile}
+            />
+
+            {/* Reset Password */}
+            <ActionItem
+              icon="🔒"
+              label="Ubah Kata Sandi"
+              description="Perbarui kata sandi akun Anda"
+              onPress={handleResetPassword}
+              isLast
+            />
+          </View>
+
+          {/* Sign Out Button */}
+          <TouchableOpacity
+            onPress={handleSignOut}
+            className="bg-red-50 border-2 border-red-200 rounded-2xl py-4 px-6 flex-row items-center justify-center shadow-sm"
+            activeOpacity={0.7}
+          >
+            <Text className="text-lg font-semibold text-red-600 mr-2">
+              Keluar dari Akun
+            </Text>
+            <Text className="text-xl">🚪</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Footer Info */}
+        <View className="px-6 pb-8 items-center">
+          <Text className="text-sm text-gray-400 text-center">
+            Terakhir diperbarui:{" "}
+            {profile?.updatedAt
+              ? new Date(profile.updatedAt).toLocaleString("id-ID", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "Tidak tersedia"}
+          </Text>
+        </View>
+      </ScrollView>
+    </>
+  );
+}
+
+// Profile Item Component
+interface ProfileItemProps {
+  icon: string;
+  label: string;
+  value: string;
+  badge?: string;
+  isLast?: boolean;
+}
+
+function ProfileItem({ icon, label, value, badge, isLast }: ProfileItemProps) {
+  return (
+    <View
+      className={`flex-row items-center px-5 py-4 ${
+        !isLast ? "border-b border-gray-100" : ""
+      }`}
+    >
+      <View className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-4">
+        <Text className="text-xl">{icon}</Text>
+      </View>
+      <View className="flex-1">
+        <Text className="text-sm text-gray-500 mb-1">{label}</Text>
+        <View className="flex-row items-center">
+          <Text className="text-base font-semibold text-gray-900 flex-1">
+            {value}
+          </Text>
+          {badge && (
+            <View className="bg-blue-50 px-3 py-1 rounded-full ml-2">
+              <Text className="text-xs font-medium text-blue-600">{badge}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// Action Item Component
+interface ActionItemProps {
+  icon: string;
+  label: string;
+  description: string;
+  onPress: () => void;
+  isLast?: boolean;
+}
+
+function ActionItem({
+  icon,
+  label,
+  description,
+  onPress,
+  isLast,
+}: ActionItemProps) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className={`flex-row items-center px-5 py-4 ${
+        !isLast ? "border-b border-gray-100" : ""
+      }`}
+      activeOpacity={0.6}
+    >
+      <View className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-4">
+        <Text className="text-xl">{icon}</Text>
+      </View>
+      <View className="flex-1">
+        <Text className="text-base font-semibold text-gray-900 mb-0.5">
+          {label}
+        </Text>
+        <Text className="text-sm text-gray-500">{description}</Text>
+      </View>
+      <Text className="text-gray-400 text-xl ml-2">›</Text>
+    </TouchableOpacity>
+  );
+}
