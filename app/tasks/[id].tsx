@@ -7,6 +7,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Modal,
   ScrollView,
   StyleSheet,
@@ -26,16 +27,20 @@ export default function TaskDetailScreen() {
     getTaskById,
     updateTask,
     deleteTask,
-    toggleSubtaskCompletion,
+    batchUpdateSubtasks,
+    updateTaskStatus,
     fetchTasks,
   } = useTask(userId);
 
   const [task, setTask] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [newSubtask, setNewSubtask] = useState("");
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [editingNotes, setEditingNotes] = useState("");
   const [isEditTaskModal, setIsEditTaskModal] = useState(false);
+
+  // State untuk subtask yang dicentang (temporary)
+  const [selectedSubtasks, setSelectedSubtasks] = useState<number[]>([]);
+  const [confirmButtonScale] = useState(new Animated.Value(0));
 
   // Load task
   const loadTask = async () => {
@@ -61,14 +66,99 @@ export default function TaskDetailScreen() {
     loadTask();
   }, [taskId]);
 
-  // Handle toggle subtask
-  const handleToggleSubtask = async (subtaskId: number) => {
-    try {
-      await toggleSubtaskCompletion(subtaskId);
-      await loadTask(); // Reload to get updated subtasks
-    } catch (error) {
-      Alert.alert("Error", "Gagal mengubah status subtask");
+  // Animate confirm button ketika ada perubahan
+  useEffect(() => {
+    if (selectedSubtasks.length > 0) {
+      Animated.spring(confirmButtonScale, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 7,
+      }).start();
+    } else {
+      Animated.spring(confirmButtonScale, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 7,
+      }).start();
     }
+  }, [selectedSubtasks.length]);
+
+  // Handle toggle subtask (temporary - belum save)
+  const handleToggleSubtask = (subtaskId: number, isCompleted: boolean) => {
+    // Jika sudah completed, tidak bisa diubah
+    if (isCompleted) {
+      Alert.alert("Info", "Subtask yang sudah selesai tidak dapat diubah");
+      return;
+    }
+
+    // Toggle selection
+    setSelectedSubtasks((prev) => {
+      if (prev.includes(subtaskId)) {
+        return prev.filter((id) => id !== subtaskId);
+      } else {
+        return [...prev, subtaskId];
+      }
+    });
+  };
+
+  // Handle konfirmasi subtask
+  const handleConfirmSubtasks = async () => {
+    if (selectedSubtasks.length === 0) return;
+
+    try {
+      Alert.alert(
+        "Konfirmasi",
+        `Tandai ${selectedSubtasks.length} subtask sebagai selesai?`,
+        [
+          { text: "Batal", style: "cancel" },
+          {
+            text: "Ya, Selesai",
+            style: "default",
+            onPress: async () => {
+              const success = await batchUpdateSubtasks(
+                taskId,
+                selectedSubtasks
+              );
+              if (success) {
+                setSelectedSubtasks([]);
+                await loadTask();
+                Alert.alert("Berhasil", "Subtask berhasil diselesaikan");
+              } else {
+                Alert.alert("Error", "Gagal menyelesaikan subtask");
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert("Error", "Gagal menyelesaikan subtask");
+    }
+  };
+
+  // Handle konfirmasi task selesai (untuk task tanpa subtask)
+  const handleCompleteTask = async () => {
+    Alert.alert("Selesaikan Task", `Tandai "${task?.title}" sebagai selesai?`, [
+      { text: "Batal", style: "cancel" },
+      {
+        text: "Ya, Selesai",
+        style: "default",
+        onPress: async () => {
+          try {
+            const success = await updateTaskStatus(taskId, "completed");
+            if (success) {
+              await loadTask();
+              Alert.alert("Berhasil", "Task berhasil diselesaikan");
+            } else {
+              Alert.alert("Error", "Gagal menyelesaikan task");
+            }
+          } catch (error) {
+            Alert.alert("Error", "Gagal menyelesaikan task");
+          }
+        },
+      },
+    ]);
   };
 
   // Handle save notes
@@ -85,45 +175,30 @@ export default function TaskDetailScreen() {
 
   // Handle delete task
   const handleDeleteTask = () => {
-    Alert.alert("Hapus Task", `Yakin hapus "${task?.title}"?`, [
-      { text: "Batal", style: "cancel" },
-      {
-        text: "Hapus",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteTask(taskId);
-            Alert.alert("Berhasil", "Task berhasil dihapus");
-            router.back();
-          } catch (error) {
-            Alert.alert("Error", "Gagal menghapus task");
-          }
+    Alert.alert(
+      "Hapus Task",
+      `Yakin ingin menghapus "${task?.title}"?\n\nTindakan ini tidak dapat dibatalkan.`,
+      [
+        { text: "Batal", style: "cancel" },
+        {
+          text: "Hapus",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteTask(taskId);
+              Alert.alert("Berhasil", "Task berhasil dihapus");
+              router.back();
+            } catch (error) {
+              Alert.alert("Error", "Gagal menghapus task");
+            }
+          },
         },
-      },
-    ]);
-  };
-
-  // Toggle task status
-  const handleToggleStatus = async () => {
-    const statusFlow = {
-      pending: "in_progress",
-      in_progress: "completed",
-      completed: "pending",
-    };
-
-    const newStatus = statusFlow[task.status as keyof typeof statusFlow];
-
-    try {
-      await updateTask(taskId, { status: newStatus });
-      setTask({ ...task, status: newStatus });
-    } catch (error) {
-      Alert.alert("Error", "Gagal mengubah status");
-    }
+      ]
+    );
   };
 
   if (loading) {
     return (
-      // Safe area View yamg bawah pad awalanya
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
@@ -255,9 +330,8 @@ export default function TaskDetailScreen() {
     : 0;
 
   return (
-    // Safe area View yamg bawah pad awalanya
     <View style={styles.container}>
-      {/* Header with Gradient */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -268,12 +342,7 @@ export default function TaskDetailScreen() {
 
         <Text style={styles.headerTitle}>Detail {currentCategory.label}</Text>
 
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => setIsEditTaskModal(true)}
-        >
-          <Ionicons name="trash-outline" size={24} color="#FF3B30" />
-        </TouchableOpacity>
+        <View style={styles.headerSpacer} />
       </View>
 
       {isEditTaskModal && (
@@ -324,13 +393,11 @@ export default function TaskDetailScreen() {
               </Text>
             </View>
 
-            <TouchableOpacity
+            <View
               style={[
                 styles.badge,
                 { backgroundColor: currentStatus.color + "20" },
               ]}
-              onPress={handleToggleStatus}
-              activeOpacity={0.7}
             >
               <Ionicons
                 name={currentStatus.icon as any}
@@ -340,7 +407,7 @@ export default function TaskDetailScreen() {
               <Text style={[styles.badgeText, { color: currentStatus.color }]}>
                 {currentStatus.label}
               </Text>
-            </TouchableOpacity>
+            </View>
           </View>
 
           {/* Title */}
@@ -477,7 +544,7 @@ export default function TaskDetailScreen() {
           </View>
         )}
 
-        {/* Repeat Card - for all categories */}
+        {/* Repeat Card */}
         {task.repeatEnabled && task.repeatOption !== "none" && (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
@@ -517,9 +584,6 @@ export default function TaskDetailScreen() {
                 <Ionicons name="document-text" size={20} color="#7B1FA2" />
                 <Text style={styles.cardTitle}>Catatan</Text>
               </View>
-              <TouchableOpacity onPress={() => setShowNotesModal(true)}>
-                <Ionicons name="pencil" size={20} color="#007AFF" />
-              </TouchableOpacity>
             </View>
 
             {task.notes ? (
@@ -535,7 +599,7 @@ export default function TaskDetailScreen() {
                   <Text style={styles.notesWordCount}>
                     {notesWordCount} kata
                   </Text>
-                  <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
+                  <Ionicons name="pencil" size={16} color="#007AFF" />
                 </View>
               </TouchableOpacity>
             ) : (
@@ -580,44 +644,152 @@ export default function TaskDetailScreen() {
 
             {/* Subtask List */}
             {task.subtasks && task.subtasks.length > 0 ? (
-              <View style={styles.subtaskList}>
-                {task.subtasks.map((subtask: any, index: number) => (
-                  <TouchableOpacity
-                    key={subtask.id}
+              <>
+                <View style={styles.subtaskList}>
+                  {task.subtasks.map((subtask: any, index: number) => {
+                    const isSelected = selectedSubtasks.includes(subtask.id);
+                    const showAsChecked = subtask.completed || isSelected;
+
+                    return (
+                      <TouchableOpacity
+                        key={subtask.id}
+                        style={[
+                          styles.subtaskItem,
+                          index === task.subtasks.length - 1 &&
+                            styles.subtaskItemLast,
+                          isSelected && styles.subtaskItemSelected,
+                        ]}
+                        onPress={() =>
+                          handleToggleSubtask(subtask.id, subtask.completed)
+                        }
+                        activeOpacity={0.7}
+                        disabled={subtask.completed}
+                      >
+                        <Ionicons
+                          name={
+                            showAsChecked
+                              ? "checkmark-circle"
+                              : "ellipse-outline"
+                          }
+                          size={24}
+                          color={
+                            showAsChecked
+                              ? isSelected
+                                ? "#007AFF"
+                                : "#34C759"
+                              : "#C7C7CC"
+                          }
+                        />
+                        <Text
+                          style={[
+                            styles.subtaskText,
+                            subtask.completed && styles.subtaskTextCompleted,
+                            isSelected && styles.subtaskTextSelected,
+                          ]}
+                        >
+                          {subtask.title}
+                        </Text>
+                        {isSelected && !subtask.completed && (
+                          <View style={styles.newBadge}>
+                            <Text style={styles.newBadgeText}>Baru</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Confirm Button untuk Subtask */}
+                {selectedSubtasks.length > 0 && (
+                  <Animated.View
                     style={[
-                      styles.subtaskItem,
-                      index === task.subtasks.length - 1 &&
-                        styles.subtaskItemLast,
+                      styles.confirmSubtaskContainer,
+                      {
+                        transform: [{ scale: confirmButtonScale }],
+                        opacity: confirmButtonScale,
+                      },
                     ]}
-                    onPress={() => handleToggleSubtask(subtask.id)}
-                    activeOpacity={0.7}
                   >
-                    <Ionicons
-                      name={
-                        subtask.completed
-                          ? "checkmark-circle"
-                          : "ellipse-outline"
-                      }
-                      size={24}
-                      color={subtask.completed ? "#34C759" : "#C7C7CC"}
-                    />
-                    <Text
-                      style={[
-                        styles.subtaskText,
-                        subtask.completed && styles.subtaskTextCompleted,
-                      ]}
+                    <TouchableOpacity
+                      style={styles.confirmSubtaskButton}
+                      onPress={handleConfirmSubtasks}
+                      activeOpacity={0.8}
                     >
-                      {subtask.title}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                      <Ionicons
+                        name="checkmark-done-circle"
+                        size={22}
+                        color="#FFFFFF"
+                      />
+                      <Text style={styles.confirmSubtaskText}>
+                        Konfirmasi {selectedSubtasks.length} Subtask Selesai
+                      </Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+                )}
+              </>
             ) : (
               <View style={styles.subtaskEmpty}>
                 <Ionicons name="checkbox-outline" size={48} color="#C7C7CC" />
                 <Text style={styles.subtaskEmptyText}>Belum ada subtask</Text>
               </View>
             )}
+          </View>
+        )}
+
+        {/* Complete Task Button - untuk task tanpa subtask yang belum selesai */}
+        {task.category === "tugas" && !isCompleted && totalSubtasks === 0 && (
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.completeTaskButton}
+              onPress={handleCompleteTask}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={24}
+                color="#34C759"
+              />
+              <Text style={styles.completeTaskButtonText}>
+                Tandai Task Sebagai Selesai
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Action Buttons - Edit & Delete */}
+        {!isCompleted && (
+          <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => setIsEditTaskModal(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="pencil" size={20} color="#FFFFFF" />
+              <Text style={styles.editButtonText}>Edit Task</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.deleteButtonBottom}
+              onPress={handleDeleteTask}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="trash" size={20} color="#FFFFFF" />
+              <Text style={styles.deleteButtonText}>Hapus Task</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Delete button untuk completed task */}
+        {isCompleted && (
+          <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity
+              style={[styles.deleteButtonBottom, { flex: 1 }]}
+              onPress={handleDeleteTask}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="trash" size={20} color="#FFFFFF" />
+              <Text style={styles.deleteButtonText}>Hapus Task</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -631,7 +803,6 @@ export default function TaskDetailScreen() {
         presentationStyle="fullScreen"
         onRequestClose={() => setShowNotesModal(false)}
       >
-        {/* Safe Area View  */}
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity
@@ -724,8 +895,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  deleteButton: {
-    padding: 4,
+  headerSpacer: {
+    width: 36,
   },
 
   // ScrollView
@@ -1051,10 +1222,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderBottomWidth: 1,
     borderBottomColor: "#F0F0F0",
+    borderRadius: 8,
   },
 
   subtaskItemLast: {
     borderBottomWidth: 0,
+  },
+
+  subtaskItemSelected: {
+    backgroundColor: "#F0F8FF",
   },
 
   subtaskText: {
@@ -1069,6 +1245,25 @@ const styles = StyleSheet.create({
     color: "#8E8E93",
   },
 
+  subtaskTextSelected: {
+    fontWeight: "600",
+    color: "#007AFF",
+  },
+
+  newBadge: {
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+
+  newBadgeText: {
+    fontSize: 10,
+    color: "#FFFFFF",
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+
   subtaskEmpty: {
     alignItems: "center",
     justifyContent: "center",
@@ -1079,6 +1274,111 @@ const styles = StyleSheet.create({
   subtaskEmptyText: {
     fontSize: 14,
     color: "#8E8E93",
+  },
+
+  // Confirm Subtask Button
+  confirmSubtaskContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#F0F0F0",
+  },
+
+  confirmSubtaskButton: {
+    backgroundColor: "#007AFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 10,
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+
+  confirmSubtaskText: {
+    fontSize: 16,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+
+  // Complete Task Button
+  completeTaskButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#34C759",
+    borderStyle: "dashed",
+    backgroundColor: "#F0FFF4",
+  },
+
+  completeTaskButtonText: {
+    fontSize: 16,
+    color: "#34C759",
+    fontWeight: "600",
+  },
+
+  // Action Buttons
+  actionButtonsContainer: {
+    flexDirection: "row",
+    gap: 12,
+    marginHorizontal: 20,
+    marginTop: 16,
+  },
+
+  editButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#007AFF",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+
+  editButtonText: {
+    fontSize: 16,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+
+  deleteButtonBottom: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#FF3B30",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    shadowColor: "#FF3B30",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+
+  deleteButtonText: {
+    fontSize: 16,
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
 
   // Modal

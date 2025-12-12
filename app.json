@@ -31,9 +31,10 @@
         {
           "backgroundColor": "#fff",
           "image": "./assets/splash-icon.png",
+
           "dark": {
             "image": "./assets/splash-icon-dark.png",
-            "backgroundColor": "#000000"
+            "backgroundColor": "#fff"
           },
           "imageWidth": 200
         }

@@ -13,9 +13,9 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 12,
-    backgroundColor: "#FFFFFF",
+    paddingTop: 45,
+    paddingBottom: 15,
+    // backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E5EA",
   },
@@ -146,6 +146,7 @@ export const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingTop: 12,
+    paddingBottom: 20,
     paddingHorizontal: 16,
   },
 
@@ -394,7 +395,7 @@ export const styles = StyleSheet.create({
   // FAB
   fab: {
     position: "absolute",
-    bottom: 20,
+    bottom: 120,
     right: 20,
     width: 56,
     height: 56,
@@ -413,4 +414,103 @@ export const styles = StyleSheet.create({
   bottomSpacer: {
     height: 80,
   },
+  statusTabs: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+    backgroundColor: "#F9F9F9",
+  },
+  statusTab: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+  },
+  statusTabActive: {
+    backgroundColor: "#E8F4FF",
+    borderColor: "#007AFF",
+  },
+  statusTabText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#8E8E93",
+  },
+  statusTabTextActive: {
+    color: "#007AFF",
+  },
+
+  // Controls Row (Category + Sort)
+  controlsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 12,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F2F2F7",
+  },
+
+  // Category Scroll
+  categoryScroll: {
+    flex: 1,
+  },
+  categoryScrollContent: {
+    paddingRight: 8,
+    gap: 8,
+  },
+
+  // Category Pills
+  categoryPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "#F2F2F7",
+    gap: 4,
+  },
+  categoryPillActive: {
+    backgroundColor: "#007AFF",
+  },
+  categoryPillText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1C1C1E",
+  },
+  categoryPillTextActive: {
+    color: "#FFFFFF",
+  },
+
+  // Sort Button
+  sortButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "#F2F2F7",
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+  },
+  sortButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#007AFF",
+  },
+});
+
+// Tambahkan styles berikut ke file taskStyles.ts yang sudah ada
+
+export const additionalStyles = StyleSheet.create({
+  // Status Tabs (2 tabs only)
 });

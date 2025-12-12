@@ -2,18 +2,16 @@ import { FontAwesome, FontAwesome5 } from "@expo/vector-icons";
 import Feather from "@expo/vector-icons/Feather";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import Animated, {
   FadeIn,
   FadeOut,
   LinearTransition,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const AnimatedTouchableOpacity =
   Animated.createAnimatedComponent(TouchableOpacity);
-
-// const PRIMARY_COLOR = "#F7F8FA";
-// const SECONDARY_COLOR = "#111827";
 
 const PRIMARY_COLOR = "#130057";
 const SECONDARY_COLOR = "#fff";
@@ -23,8 +21,24 @@ const CustomNavBar: React.FC<BottomTabBarProps> = ({
   descriptors,
   navigation,
 }) => {
+  const insets = useSafeAreaInsets();
+
+  // Hitung bottom position yang aman
+  const bottomPosition = Platform.select({
+    ios: insets.bottom > 0 ? insets.bottom + 10 : 25,
+    android: insets.bottom > 0 ? insets.bottom + 15 : 25,
+    default: 25,
+  });
+
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        {
+          bottom: bottomPosition,
+        },
+      ]}
+    >
       {state.routes.map((route, index) => {
         if (["_sitemap", "+not-found"].includes(route.name)) return null;
 
@@ -52,13 +66,17 @@ const CustomNavBar: React.FC<BottomTabBarProps> = ({
 
         return (
           <AnimatedTouchableOpacity
-            layout={LinearTransition.springify().mass(0.5)}
             key={route.key}
+            accessibilityRole="button"
+            accessibilityState={isFocused ? { selected: true } : {}}
+            accessibilityLabel={options.tabBarAccessibilityLabel}
+            testID={options.tabBarTestID}
             onPress={onPress}
             style={[
               styles.tabItem,
-              { backgroundColor: isFocused ? SECONDARY_COLOR : "transparent" },
+              isFocused && { backgroundColor: SECONDARY_COLOR },
             ]}
+            layout={LinearTransition}
           >
             {getIconByRouteName(
               route.name,
@@ -106,7 +124,6 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY_COLOR,
     width: "90%",
     alignSelf: "center",
-    bottom: 25,
     borderRadius: 40,
     paddingHorizontal: 12,
     paddingVertical: 15,

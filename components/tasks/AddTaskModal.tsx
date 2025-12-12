@@ -41,7 +41,7 @@ export default function AddTaskModal({
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderDaysBefore, setReminderDaysBefore] = useState("0");
   const [isCustomDays, setIsCustomDays] = useState(false);
-  const [reminderTime, setReminderTime] = useState(new Date());
+  const [reminderTime, setReminderTime] = useState(deadline);
   const [customInterval, setCustomInterval] = useState(1);
   const [customUnit, setCustomUnit] = useState<"days" | "weeks" | "months" | "years">("days");
   const [endOption, setEndOption] = useState("never");
@@ -60,10 +60,9 @@ export default function AddTaskModal({
 
   useEffect(() => {
     const defaultTime = new Date();
-    defaultTime.setHours(9, 0, 0, 0);
-    const reminderTimeMinus3 = new Date(defaultTime);
-    reminderTimeMinus3.setHours(reminderTimeMinus3.getHours() - 3);
-    setReminderTime(reminderTimeMinus3);
+    const reminderTimeMinus = new Date(defaultTime);
+    reminderTimeMinus.setHours(reminderTimeMinus.getHours() - 1);
+    setReminderTime(reminderTimeMinus);
     setTime(defaultTime);
     setRepeatEndDate(new Date());
   }, []);
