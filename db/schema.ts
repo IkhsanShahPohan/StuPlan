@@ -55,7 +55,7 @@ export const tasks = sqliteTable("tasks", {
 
   status: text("status", { enum: ["pending", "in_progress", "completed"] })
     .notNull()
-    .default("pending"),
+    .default("in_progress"),
 
   // Menyimpan notification IDs dalam format JSON array
   notificationIds: text("notification_ids"), // JSON string: ["id1", "id2", "id3"]

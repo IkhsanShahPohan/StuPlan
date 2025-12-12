@@ -395,7 +395,7 @@ const HomeScreen = () => {
             <TouchableOpacity
               style={styles.quickActionCard}
               activeOpacity={0.7}
-              onPress={() => handleCreateTask('jadwal')}
+              onPress={() => router.push("/(tabs)/calendar")}
             >
               <LinearGradient
                 colors={['#3B82F6', '#2563EB']}

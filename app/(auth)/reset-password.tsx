@@ -20,7 +20,7 @@ import { supabase } from "../../lib/supabase";
 
 const { height, width } = Dimensions.get("window");
 
-export default function ForgotPasswordOTP() {
+export default function ResetPassword() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");

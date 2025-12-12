@@ -10,12 +10,12 @@ import {
   Alert,
   RefreshControl,
   ScrollView,
-  StatusBar,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
+import { useFocusEffect } from "@react-navigation/native";
 
 interface UserProfile {
   id: string;
@@ -87,7 +87,7 @@ export default function ProfileScreen() {
   };
 
   const handleResetPassword = () => {
-    router.push("/reset-password");
+    router.push("/(auth)/reset-password");
   };
 
   const handleEditProfile = () => {
@@ -144,149 +144,146 @@ export default function ProfileScreen() {
   }
 
   return (
-    <>
-      <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+    <ScrollView
+      className="flex-1 bg-gray-50"
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      {/* Header Section */}
+      <Animated.View
+        entering={FadeInDown.duration(400)}
+        className="bg-white pt-16 pb-8 px-6 border-b border-gray-100"
       >
-        {/* Header Section */}
-        <Animated.View
-          entering={FadeInDown.duration(400)}
-          className="bg-white pt-16 pb-8 px-6 border-b border-gray-100"
-        >
-          <View className="items-center">
-            {/* Avatar */}
-            <View className="w-28 h-28 rounded-full bg-gradient-to-br from-gray-900 to-gray-700 items-center justify-center shadow-lg mb-4">
-              <Text className="text-white text-4xl font-bold">
-                {getInitials(profile?.fullName || null)}
-              </Text>
-            </View>
-
-            {/* Name & Email */}
-            <Text className="text-2xl font-bold text-gray-900 mb-1">
-              {profile?.fullName || "Nama belum diisi"}
+        <View className="items-center">
+          {/* Avatar */}
+          <View className="w-28 h-28 rounded-full bg-gradient-to-br from-gray-900 to-gray-700 items-center justify-center shadow-lg mb-4">
+            <Text className="text-white text-4xl font-bold">
+              {getInitials(profile?.fullName || null)}
             </Text>
-            <Text className="text-base text-gray-500 mb-3">
-              {profile?.email}
-            </Text>
-
-            {/* Member Since Badge */}
-            <View className="bg-gray-100 px-4 py-2 rounded-full">
-              <Text className="text-xs font-medium text-gray-600">
-                Bergabung sejak {getMemberSince(profile?.createdAt || null)}
-              </Text>
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* Profile Information Section */}
-        <Animated.View
-          entering={FadeInRight.delay(100).duration(400)}
-          className="px-6 py-6"
-        >
-          <Text className="text-lg font-bold text-gray-900 mb-4">
-            Informasi Pribadi
-          </Text>
-
-          <View className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            {/* Full Name */}
-            <ProfileItem
-              icon="👤"
-              label="Nama Lengkap"
-              value={profile?.fullName || "Belum diisi"}
-            />
-
-            {/* Birth Date & Age */}
-            <ProfileItem
-              icon="🎂"
-              label="Tanggal Lahir"
-              value={formatDate(profile?.birthDate || null)}
-              badge={
-                profile?.birthDate
-                  ? `${calculateAge(profile.birthDate)} tahun`
-                  : undefined
-              }
-            />
-
-            {/* Education Level */}
-            <ProfileItem
-              icon="🎓"
-              label="Jenjang Pendidikan"
-              value={profile?.educationLevel || "Belum diisi"}
-            />
-
-            {/* Institution */}
-            <ProfileItem
-              icon="🏫"
-              label="Instansi"
-              value={profile?.institution || "Belum diisi"}
-              isLast
-            />
-          </View>
-        </Animated.View>
-
-        {/* Account Management Section */}
-        <Animated.View
-          entering={FadeInRight.delay(200).duration(400)}
-          className="px-6 pb-6"
-        >
-          <Text className="text-lg font-bold text-gray-900 mb-4">
-            Pengaturan Akun
-          </Text>
-
-          <View className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4">
-            {/* Edit Profile */}
-            <ActionItem
-              icon="✏"
-              label="Edit Profil"
-              description="Perbarui informasi pribadi Anda"
-              onPress={handleEditProfile}
-            />
-
-            {/* Reset Password */}
-            <ActionItem
-              icon="🔒"
-              label="Ubah Kata Sandi"
-              description="Perbarui kata sandi akun Anda"
-              onPress={handleResetPassword}
-              isLast
-            />
           </View>
 
-          {/* Sign Out Button */}
-          <TouchableOpacity
-            onPress={handleSignOut}
-            className="bg-red-50 border-2 border-red-200 rounded-2xl py-4 px-6 flex-row items-center justify-center shadow-sm"
-            activeOpacity={0.7}
-          >
-            <Text className="text-lg font-semibold text-red-600 mr-2">
-              Keluar dari Akun
-            </Text>
-            <Text className="text-xl">🚪</Text>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Footer Info */}
-        <View className="px-6 pb-8 items-center">
-          <Text className="text-sm text-gray-400 text-center">
-            Terakhir diperbarui:{" "}
-            {profile?.updatedAt
-              ? new Date(profile.updatedAt).toLocaleString("id-ID", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "Tidak tersedia"}
+          {/* Name & Email */}
+          <Text className="text-2xl font-bold text-gray-900 mb-1">
+            {profile?.fullName || "Nama belum diisi"}
           </Text>
+          <Text className="text-base text-gray-500 mb-3">
+            {profile?.email}
+          </Text>
+
+          {/* Member Since Badge */}
+          <View className="bg-gray-100 px-4 py-2 rounded-full">
+            <Text className="text-xs font-medium text-gray-600">
+              Bergabung sejak {getMemberSince(profile?.createdAt || null)}
+            </Text>
+          </View>
         </View>
-      </ScrollView>
-    </>
+      </Animated.View>
+
+      {/* Profile Information Section */}
+      <Animated.View
+        entering={FadeInRight.delay(100).duration(400)}
+        className="px-6 py-6"
+      >
+        <Text className="text-lg font-bold text-gray-900 mb-4">
+          Informasi Pribadi
+        </Text>
+
+        <View className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          {/* Full Name */}
+          <ProfileItem
+            icon="👤"
+            label="Nama Lengkap"
+            value={profile?.fullName || "Belum diisi"}
+          />
+
+          {/* Birth Date & Age */}
+          <ProfileItem
+            icon="🎂"
+            label="Tanggal Lahir"
+            value={formatDate(profile?.birthDate || null)}
+            badge={
+              profile?.birthDate
+                ? `${calculateAge(profile.birthDate)} tahun`
+                : undefined
+            }
+          />
+
+          {/* Education Level */}
+          <ProfileItem
+            icon="🎓"
+            label="Jenjang Pendidikan"
+            value={profile?.educationLevel || "Belum diisi"}
+          />
+
+          {/* Institution */}
+          <ProfileItem
+            icon="🏫"
+            label="Instansi"
+            value={profile?.institution || "Belum diisi"}
+            isLast
+          />
+        </View>
+      </Animated.View>
+
+      {/* Account Management Section */}
+      <Animated.View
+        entering={FadeInRight.delay(200).duration(400)}
+        className="px-6 pb-6"
+      >
+        <Text className="text-lg font-bold text-gray-900 mb-4">
+          Pengaturan Akun
+        </Text>
+
+        <View className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+          {/* Edit Profile */}
+          <ActionItem
+            icon="✏"
+            label="Edit Profil"
+            description="Perbarui informasi pribadi Anda"
+            onPress={handleEditProfile}
+          />
+
+          {/* Reset Password */}
+          <ActionItem
+            icon="🔒"
+            label="Ubah Kata Sandi"
+            description="Perbarui kata sandi akun Anda"
+            onPress={handleResetPassword}
+            isLast
+          />
+        </View>
+
+        {/* Sign Out Button */}
+        <TouchableOpacity
+          onPress={handleSignOut}
+          className="bg-red-50 border-2 border-red-200 rounded-2xl py-4 px-6 flex-row items-center justify-center shadow-sm"
+          activeOpacity={0.7}
+        >
+          <Text className="text-lg font-semibold text-red-600 mr-2">
+            Keluar dari Akun
+          </Text>
+          <Text className="text-xl">🚪</Text>
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* Footer Info */}
+      <View className="px-6 pb-8 items-center">
+        <Text className="text-sm text-gray-400 text-center">
+          Terakhir diperbarui:{" "}
+          {profile?.updatedAt
+            ? new Date(profile.updatedAt).toLocaleString("id-ID", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "Tidak tersedia"}
+        </Text>
+      </View>
+    </ScrollView>
   );
 }
 

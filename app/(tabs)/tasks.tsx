@@ -1,3 +1,4 @@
+import TaskCompletionModal from "@/components/TaskModalCompletion";
 import AddTaskModal from "@/components/tasks/AddTaskModal";
 import FilterModal from "@/components/tasks/FilterModal";
 import { TaskWithSubtasks, useTask } from "@/hooks/useTasks";
@@ -8,6 +9,7 @@ import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
+  RefreshControl,
   ScrollView,
   Text,
   TextInput,
@@ -15,18 +17,28 @@ import {
   View,
 } from "react-native";
 
-type StatusFilter = "all" | "in_progress" | "completed" | "overdue";
+type StatusFilter = "in_progress" | "completed";
+type CategoryFilter = "all" | "tugas" | "jadwal" | "kegiatan";
+type SortOption = "created_at" | "deadline";
 
 export default function TaskListScreen() {
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [completionModalVisible, setCompletionModalVisible] = useState(false);
+  const [selectedTaskForCompletion, setSelectedTaskForCompletion] = useState<{
+    id: number;
+    title: string;
+  } | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStartDate, setFilterStartDate] = useState<Date | null>(null);
   const [filterEndDate, setFilterEndDate] = useState<Date | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<StatusFilter>("all");
-  const [selectedCategory, setSelectedCategory] = useState<
-    "all" | "tugas" | "jadwal" | "kegiatan"
-  >("all");
+  const [selectedStatus, setSelectedStatus] =
+    useState<StatusFilter>("in_progress");
+  const [selectedCategory, setSelectedCategory] =
+    useState<CategoryFilter>("all");
+  const [sortBy, setSortBy] = useState<SortOption>("deadline");
+  const [refreshing, setRefreshing] = useState(false);
 
   const { user } = useAuth();
   const userId = user?.id || "";
@@ -41,7 +53,17 @@ export default function TaskListScreen() {
     refreshTasks,
   } = useTask(userId);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshTasks();
+    setRefreshing(false);
+  };
+
   const isTaskOverdue = (task: TaskWithSubtasks) => {
+    // Overdue hanya untuk non-repeat tasks
+    const isNonRepeat = !task.repeatEnabled || task.repeatOption === "none";
+    if (!isNonRepeat) return false;
+
     const deadline = new Date(task.deadline);
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -60,19 +82,15 @@ export default function TaskListScreen() {
   const filteredTasks = useMemo(() => {
     let result = tasks;
 
+    // Filter by category
     if (selectedCategory !== "all") {
       result = result.filter((task) => task.category === selectedCategory);
     }
 
-    if (selectedStatus !== "all") {
-      result = result.filter((task) => {
-        if (selectedStatus === "overdue") {
-          return isTaskOverdue(task);
-        }
-        return task.status === selectedStatus;
-      });
-    }
+    // Filter by status
+    result = result.filter((task) => task.status === selectedStatus);
 
+    // Search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
@@ -82,6 +100,7 @@ export default function TaskListScreen() {
       );
     }
 
+    // Date range filter
     if (filterStartDate || filterEndDate) {
       result = result.filter((task) => {
         const taskDate = new Date(task.deadline);
@@ -106,15 +125,28 @@ export default function TaskListScreen() {
       });
     }
 
-    return result.sort((a, b) => {
-      const aOverdue = isTaskOverdue(a);
-      const bOverdue = isTaskOverdue(b);
+    // Sorting
+    result.sort((a, b) => {
+      if (sortBy === "deadline") {
+        // Sort by deadline (nearest first)
+        const aOverdue = isTaskOverdue(a);
+        const bOverdue = isTaskOverdue(b);
 
-      if (aOverdue && !bOverdue) return -1;
-      if (!aOverdue && bOverdue) return 1;
+        // Overdue tasks first
+        if (aOverdue && !bOverdue) return -1;
+        if (!aOverdue && bOverdue) return 1;
 
-      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+        // Then by deadline
+        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      } else {
+        // Sort by created_at (newest first)
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      }
     });
+
+    return result;
   }, [
     tasks,
     selectedCategory,
@@ -122,35 +154,39 @@ export default function TaskListScreen() {
     searchQuery,
     filterStartDate,
     filterEndDate,
+    sortBy,
   ]);
 
-  const handleConfirmTask = async (taskId: number, taskTitle: string) => {
-    Alert.alert(
-      "Konfirmasi Selesai",
-      `Tandai "${taskTitle}" sebagai selesai?\n\nSemua notifikasi terkait akan dibatalkan.`,
-      [
-        { text: "Batal", style: "cancel" },
-        {
-          text: "Selesai",
-          style: "default",
-          onPress: async () => {
-            try {
-              await cancelTaskNotifications(taskId);
-              const success = await updateTaskStatus(taskId, "completed");
+  const handleConfirmTask = (taskId: number, taskTitle: string) => {
+    setSelectedTaskForCompletion({ id: taskId, title: taskTitle });
+    setCompletionModalVisible(true);
+  };
 
-              if (success) {
-                Alert.alert("Berhasil", "Task ditandai selesai");
-              } else {
-                Alert.alert("Error", "Gagal memperbarui status");
-              }
-            } catch (error) {
-              console.error("Error confirming task:", error);
-              Alert.alert("Error", "Gagal memperbarui status");
-            }
-          },
-        },
-      ]
-    );
+  const handleCompleteTask = async () => {
+    if (!selectedTaskForCompletion) return;
+
+    try {
+      await cancelTaskNotifications(selectedTaskForCompletion.id);
+      const success = await updateTaskStatus(
+        selectedTaskForCompletion.id,
+        "completed"
+      );
+
+      if (success) {
+        // Modal akan menampilkan celebration, lalu close otomatis
+        setTimeout(() => {
+          setCompletionModalVisible(false);
+          setSelectedTaskForCompletion(null);
+        }, 2500);
+      } else {
+        setCompletionModalVisible(false);
+        Alert.alert("Error", "Gagal memperbarui status");
+      }
+    } catch (error) {
+      console.error("Error confirming task:", error);
+      setCompletionModalVisible(false);
+      Alert.alert("Error", "Gagal memperbarui status");
+    }
   };
 
   const handleDeleteTask = (taskId: number, taskTitle: string) => {
@@ -209,25 +245,9 @@ export default function TaskListScreen() {
     }
   };
 
-  const getStatusCounts = () => {
-    return {
-      all: tasks.length,
-      in_progress: tasks.filter(
-        (t) => t.status === "in_progress" || t.status === "pending"
-      ).length,
-      completed: tasks.filter((t) => t.status === "completed").length,
-      overdue: tasks.filter((t) => isTaskOverdue(t)).length,
-    };
-  };
-
   const getCategoryCounts = () => {
-    const filtered = selectedStatus === "all" 
-      ? tasks 
-      : tasks.filter(task => {
-          if (selectedStatus === "overdue") return isTaskOverdue(task);
-          return task.status === selectedStatus;
-        });
-    
+    const filtered = tasks.filter((task) => task.status === selectedStatus);
+
     return {
       all: filtered.length,
       tugas: filtered.filter((t) => t.category === "tugas").length,
@@ -236,12 +256,11 @@ export default function TaskListScreen() {
     };
   };
 
-  const statusCounts = getStatusCounts();
   const categoryCounts = getCategoryCounts();
 
   return (
     <View style={styles.container}>
-      {/* Compact Header */}
+      {/* Header */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Tasks</Text>
@@ -258,9 +277,14 @@ export default function TaskListScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Compact Search */}
+      {/* Search */}
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={18} color="#8E8E93" style={styles.searchIcon} />
+        <Ionicons
+          name="search"
+          size={18}
+          color="#8E8E93"
+          style={styles.searchIcon}
+        />
         <TextInput
           style={styles.searchInput}
           value={searchQuery}
@@ -276,122 +300,73 @@ export default function TaskListScreen() {
         )}
       </View>
 
-      {/* Compact Combined Filters - Single Row */}
-      <View style={styles.filterSection}>
+      {/* Status Tabs */}
+      <View style={styles.statusTabs}>
+        <TouchableOpacity
+          style={[
+            styles.statusTab,
+            selectedStatus === "in_progress" && styles.statusTabActive,
+          ]}
+          onPress={() => setSelectedStatus("in_progress")}
+        >
+          <Ionicons
+            name="time"
+            size={16}
+            color={selectedStatus === "in_progress" ? "#007AFF" : "#8E8E93"}
+          />
+          <Text
+            style={[
+              styles.statusTabText,
+              selectedStatus === "in_progress" && styles.statusTabTextActive,
+            ]}
+          >
+            Berjalan
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.statusTab,
+            selectedStatus === "completed" && styles.statusTabActive,
+          ]}
+          onPress={() => setSelectedStatus("completed")}
+        >
+          <Ionicons
+            name="checkmark-circle"
+            size={16}
+            color={selectedStatus === "completed" ? "#34C759" : "#8E8E93"}
+          />
+          <Text
+            style={[
+              styles.statusTabText,
+              selectedStatus === "completed" && styles.statusTabTextActive,
+            ]}
+          >
+            Selesai
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Category Filter + Sort */}
+      <View style={styles.controlsRow}>
+        {/* Category Pills */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterScrollContent}
+          style={styles.categoryScroll}
+          contentContainerStyle={styles.categoryScrollContent}
         >
-          {/* Status Filters */}
           <TouchableOpacity
             style={[
-              styles.filterChip,
-              selectedStatus === "all" && styles.filterChipActive,
-            ]}
-            onPress={() => setSelectedStatus("all")}
-          >
-            <Ionicons
-              name="apps"
-              size={14}
-              color={selectedStatus === "all" ? "#FFFFFF" : "#8E8E93"}
-            />
-            <Text
-              style={[
-                styles.filterChipText,
-                selectedStatus === "all" && styles.filterChipTextActive,
-              ]}
-            >
-              Semua ({statusCounts.all})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              selectedStatus === "in_progress" && styles.filterChipActive,
-            ]}
-            onPress={() => setSelectedStatus("in_progress")}
-          >
-            <Ionicons
-              name="time"
-              size={14}
-              color={selectedStatus === "in_progress" ? "#FFFFFF" : "#007AFF"}
-            />
-            <Text
-              style={[
-                styles.filterChipText,
-                selectedStatus === "in_progress" && styles.filterChipTextActive,
-              ]}
-            >
-              Berjalan ({statusCounts.in_progress})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              selectedStatus === "completed" && styles.filterChipActive,
-            ]}
-            onPress={() => setSelectedStatus("completed")}
-          >
-            <Ionicons
-              name="checkmark-circle"
-              size={14}
-              color={selectedStatus === "completed" ? "#FFFFFF" : "#34C759"}
-            />
-            <Text
-              style={[
-                styles.filterChipText,
-                selectedStatus === "completed" && styles.filterChipTextActive,
-              ]}
-            >
-              Selesai ({statusCounts.completed})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              selectedStatus === "overdue" && styles.filterChipActive,
-            ]}
-            onPress={() => setSelectedStatus("overdue")}
-          >
-            <Ionicons
-              name="alert-circle"
-              size={14}
-              color={selectedStatus === "overdue" ? "#FFFFFF" : "#FF3B30"}
-            />
-            <Text
-              style={[
-                styles.filterChipText,
-                selectedStatus === "overdue" && styles.filterChipTextActive,
-              ]}
-            >
-              Terlambat ({statusCounts.overdue})
-            </Text>
-          </TouchableOpacity>
-
-          {/* Divider */}
-          <View style={{ width: 1, height: 28, backgroundColor: "#E5E5EA", marginHorizontal: 8 }} />
-
-          {/* Category Filters */}
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              selectedCategory === "all" && styles.filterChipActive,
+              styles.categoryPill,
+              selectedCategory === "all" && styles.categoryPillActive,
             ]}
             onPress={() => setSelectedCategory("all")}
           >
-            <Ionicons
-              name="grid"
-              size={14}
-              color={selectedCategory === "all" ? "#FFFFFF" : "#8E8E93"}
-            />
             <Text
               style={[
-                styles.filterChipText,
-                selectedCategory === "all" && styles.filterChipTextActive,
+                styles.categoryPillText,
+                selectedCategory === "all" && styles.categoryPillTextActive,
               ]}
             >
               Semua ({categoryCounts.all})
@@ -400,8 +375,8 @@ export default function TaskListScreen() {
 
           <TouchableOpacity
             style={[
-              styles.filterChip,
-              selectedCategory === "tugas" && styles.filterChipActive,
+              styles.categoryPill,
+              selectedCategory === "tugas" && styles.categoryPillActive,
             ]}
             onPress={() => setSelectedCategory("tugas")}
           >
@@ -412,8 +387,8 @@ export default function TaskListScreen() {
             />
             <Text
               style={[
-                styles.filterChipText,
-                selectedCategory === "tugas" && styles.filterChipTextActive,
+                styles.categoryPillText,
+                selectedCategory === "tugas" && styles.categoryPillTextActive,
               ]}
             >
               Tugas ({categoryCounts.tugas})
@@ -422,8 +397,8 @@ export default function TaskListScreen() {
 
           <TouchableOpacity
             style={[
-              styles.filterChip,
-              selectedCategory === "jadwal" && styles.filterChipActive,
+              styles.categoryPill,
+              selectedCategory === "jadwal" && styles.categoryPillActive,
             ]}
             onPress={() => setSelectedCategory("jadwal")}
           >
@@ -434,8 +409,8 @@ export default function TaskListScreen() {
             />
             <Text
               style={[
-                styles.filterChipText,
-                selectedCategory === "jadwal" && styles.filterChipTextActive,
+                styles.categoryPillText,
+                selectedCategory === "jadwal" && styles.categoryPillTextActive,
               ]}
             >
               Jadwal ({categoryCounts.jadwal})
@@ -444,8 +419,8 @@ export default function TaskListScreen() {
 
           <TouchableOpacity
             style={[
-              styles.filterChip,
-              selectedCategory === "kegiatan" && styles.filterChipActive,
+              styles.categoryPill,
+              selectedCategory === "kegiatan" && styles.categoryPillActive,
             ]}
             onPress={() => setSelectedCategory("kegiatan")}
           >
@@ -456,17 +431,43 @@ export default function TaskListScreen() {
             />
             <Text
               style={[
-                styles.filterChipText,
-                selectedCategory === "kegiatan" && styles.filterChipTextActive,
+                styles.categoryPillText,
+                selectedCategory === "kegiatan" &&
+                  styles.categoryPillTextActive,
               ]}
             >
               Kegiatan ({categoryCounts.kegiatan})
             </Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Sort Dropdown */}
+        <TouchableOpacity
+          style={styles.sortButton}
+          onPress={() => {
+            Alert.alert("Urutkan", "Pilih urutan tampilan", [
+              {
+                text: "Tenggat Terdekat",
+                onPress: () => setSortBy("deadline"),
+                style: sortBy === "deadline" ? "default" : "cancel",
+              },
+              {
+                text: "Terbaru Dibuat",
+                onPress: () => setSortBy("created_at"),
+                style: sortBy === "created_at" ? "default" : "cancel",
+              },
+              { text: "Batal", style: "cancel" },
+            ]);
+          }}
+        >
+          <Ionicons name="swap-vertical" size={18} color="#007AFF" />
+          <Text style={styles.sortButtonText}>
+            {sortBy === "deadline" ? "Tenggat" : "Terbaru"}
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Date Filter Info - Only if active */}
+      {/* Date Filter Badge */}
       {(filterStartDate || filterEndDate) && (
         <View style={styles.activeDateFilter}>
           <Ionicons name="calendar" size={12} color="#007AFF" />
@@ -493,11 +494,14 @@ export default function TaskListScreen() {
         </View>
       )}
 
-      {/* Task List - PRIORITY SPACE */}
+      {/* Task List with Pull to Refresh */}
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {filteredTasks.length === 0 ? (
           <View style={styles.emptyState}>
@@ -505,9 +509,7 @@ export default function TaskListScreen() {
               name={
                 selectedStatus === "completed"
                   ? "checkmark-circle-outline"
-                  : selectedStatus === "overdue"
-                    ? "alert-circle-outline"
-                    : "file-tray-outline"
+                  : "file-tray-outline"
               }
               size={70}
               color="#C7C7CC"
@@ -516,7 +518,9 @@ export default function TaskListScreen() {
             <Text style={styles.emptySubtext}>
               {searchQuery || filterStartDate || filterEndDate
                 ? "Coba ubah filter"
-                : "Tap tombol + untuk buat baru"}
+                : selectedStatus === "completed"
+                  ? "Belum ada task yang selesai"
+                  : "Tap tombol + untuk buat baru"}
             </Text>
           </View>
         ) : (
@@ -613,7 +617,9 @@ export default function TaskListScreen() {
                       <Text
                         style={[
                           styles.metaChipText,
-                          isOverdue && !isCompleted && styles.metaChipTextOverdue,
+                          isOverdue &&
+                            !isCompleted &&
+                            styles.metaChipTextOverdue,
                           isCompleted && styles.metaChipTextCompleted,
                         ]}
                       >
@@ -676,7 +682,11 @@ export default function TaskListScreen() {
                       }}
                       style={styles.deleteButton}
                     >
-                      <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+                      <Ionicons
+                        name="trash-outline"
+                        size={16}
+                        color="#FF3B30"
+                      />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -732,6 +742,16 @@ export default function TaskListScreen() {
         onReset={() => {
           setFilterStartDate(null);
           setFilterEndDate(null);
+        }}
+      />
+
+      <TaskCompletionModal
+        visible={completionModalVisible}
+        taskTitle={selectedTaskForCompletion?.title || ""}
+        onConfirm={handleCompleteTask}
+        onCancel={() => {
+          setCompletionModalVisible(false);
+          setSelectedTaskForCompletion(null);
         }}
       />
     </View>

@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/expo-sqlite";
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import * as Notifications from "expo-notifications";
 import { Stack, useRouter } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { SQLiteProvider, openDatabaseSync } from "expo-sqlite";
 import { Suspense, useEffect, useState } from "react";
 import { ActivityIndicator, Platform, Text, View } from "react-native";
@@ -11,6 +12,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import "../global.css";
 
 export const DATABASE_NAME = "tasks";
+
+SplashScreen.setOptions({
+  duration: 1000,
+  fade: true,
+});
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({

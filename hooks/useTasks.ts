@@ -211,7 +211,7 @@ export const useTask = (userId: string) => {
         customInterval: formData.customInterval || null,
         customUnit: formData.customUnit || null,
         endOption: formData.endOption || "deadline",
-        status: formData.status || "pending",
+        status: "in_progress",
         notificationIds: null,
         updatedAt: new Date().toISOString(),
       };
