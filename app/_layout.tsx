@@ -1,3 +1,4 @@
+import { AlertProvider } from "@/components/useAlert";
 import migrations from "@/drizzle/migrations";
 import { AuthProvider } from "@/lib/AuthContext";
 import { drizzle } from "drizzle-orm/expo-sqlite";
@@ -99,7 +100,9 @@ export default function AuthLayout() {
         useSuspense
       >
         <AuthProvider>
-          <Stack screenOptions={{ headerShown: false }} />
+          <AlertProvider>
+            <Stack screenOptions={{ headerShown: false }} />
+          </AlertProvider>
         </AuthProvider>
       </SQLiteProvider>
     </Suspense>

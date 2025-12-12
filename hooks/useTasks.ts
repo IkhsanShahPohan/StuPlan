@@ -12,6 +12,7 @@ import {
   scheduleTaskNotifications,
 } from "@/lib/notificationHelper";
 import { desc, eq } from "drizzle-orm";
+import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { useDrizzle } from "./useDrizzle";
 
@@ -274,7 +275,7 @@ export const useTask = (userId: string) => {
 
       // Refresh tasks
       await fetchTasks();
-
+      router.replace("/(tabs)/tasks");
       console.log("✅ Task created successfully:", insertedTask.id);
       return insertedTask;
     } catch (err) {
@@ -634,6 +635,45 @@ export const useTask = (userId: string) => {
   }, [tasks]);
 
   /**
+   * Batch update subtasks (untuk konfirmasi sekaligus)
+   */
+  const batchUpdateSubtasks = async (
+    taskId: number,
+    subtaskIds: number[]
+  ): Promise<boolean> => {
+    try {
+      // Update semua subtasks yang dipilih
+      await Promise.all(
+        subtaskIds.map((subtaskId) =>
+          db
+            .update(subtasksTable)
+            .set({ completed: true })
+            .where(eq(subtasksTable.id, subtaskId))
+        )
+      );
+
+      // Check if all subtasks completed
+      const taskWithSubtasks = await getTaskById(taskId);
+      if (taskWithSubtasks) {
+        const allCompleted = taskWithSubtasks.subtasks.every(
+          (s) => s.completed
+        );
+
+        // Auto-complete task if all subtasks done
+        if (allCompleted && taskWithSubtasks.status !== "completed") {
+          await updateTaskStatus(taskId, "completed");
+        }
+      }
+
+      await fetchTasks();
+      return true;
+    } catch (err) {
+      console.error("Error batch updating subtasks:", err);
+      return false;
+    }
+  };
+
+  /**
    * Filter by status
    */
   const filterByStatus = useCallback(
@@ -729,6 +769,7 @@ export const useTask = (userId: string) => {
     getCompletedTasks,
 
     // Actions
+    batchUpdateSubtasks,
     toggleTaskStatus,
     toggleSubtaskCompletion,
     cancelTaskNotifications: cancelTaskNotificationsByTaskId, // ✅ TAMBAHKAN INI (rename untuk clarity)

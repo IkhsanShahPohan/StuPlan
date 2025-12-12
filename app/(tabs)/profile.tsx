@@ -15,7 +15,6 @@ import {
   View,
 } from "react-native";
 import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
-import { useFocusEffect } from "@react-navigation/native";
 
 interface UserProfile {
   id: string;
@@ -96,8 +95,17 @@ export default function ProfileScreen() {
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "Belum diisi";
-    return dateString;
+
+    const date = new Date(dateString);
+
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = date.toLocaleString("id-ID", { month: "long" }); // November, Januari, dll
+    const year = date.getFullYear();
+
+    return `${day} ${month} ${year}`;
   };
+
+
 
   const calculateAge = (birthDate: string | null) => {
     if (!birthDate) return null;
@@ -150,6 +158,7 @@ export default function ProfileScreen() {
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
+      contentContainerStyle={{ paddingBottom: 43 }}
     >
       {/* Header Section */}
       <Animated.View
@@ -168,9 +177,7 @@ export default function ProfileScreen() {
           <Text className="text-2xl font-bold text-gray-900 mb-1">
             {profile?.fullName || "Nama belum diisi"}
           </Text>
-          <Text className="text-base text-gray-500 mb-3">
-            {profile?.email}
-          </Text>
+          <Text className="text-base text-gray-500 mb-3">{profile?.email}</Text>
 
           {/* Member Since Badge */}
           <View className="bg-gray-100 px-4 py-2 rounded-full">
@@ -203,11 +210,11 @@ export default function ProfileScreen() {
             icon="🎂"
             label="Tanggal Lahir"
             value={formatDate(profile?.birthDate || null)}
-            badge={
-              profile?.birthDate
-                ? `${calculateAge(profile.birthDate)} tahun`
-                : undefined
-            }
+            // badge={
+            //   profile?.birthDate
+            //     ? `${calculateAge(profile.birthDate)} tahun`
+            //     : undefined
+            // }
           />
 
           {/* Education Level */}
@@ -250,7 +257,7 @@ export default function ProfileScreen() {
             icon="🔒"
             label="Ubah Kata Sandi"
             description="Perbarui kata sandi akun Anda"
-            onPress={handleResetPassword}
+            onPress={() => router.push("/change-password")}
             isLast
           />
         </View>
