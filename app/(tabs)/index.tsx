@@ -54,6 +54,29 @@ const HomeScreen = () => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    // Awal minggu (set ke hari Senin)
+    const startOfWeek = new Date(today);
+    const day = startOfWeek.getDay(); // 0 = Minggu, 1 = Senin, ...
+    const diffToMonday = (day === 0 ? -6 : 1 - day); 
+    startOfWeek.setDate(startOfWeek.getDate() + diffToMonday);
+
+    // Set jam ke awal hari
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    // Akhir minggu = awal minggu + 7 hari
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(endOfWeek.getDate() + 7);
+    endOfWeek.setHours(0, 0, 0, 0);
+
+    const completedThisWeek = tasks.filter((task) => {
+      const updatedAt = new Date(task.updatedAt || '');
+      return (
+        task.status === 'completed' &&
+        updatedAt >= startOfWeek &&
+        updatedAt < endOfWeek
+      );
+    }).length;
+
     const completedToday = tasks.filter((task) => {
       const updatedAt = new Date(task.updatedAt || '');
       return (
@@ -75,6 +98,7 @@ const HomeScreen = () => {
 
     return {
       totalTasks,
+      completedThisWeek,
       completedToday,
       upcoming: upcomingTasks.length,
       overdue: overdueTasks.length,
@@ -297,7 +321,7 @@ const HomeScreen = () => {
 
             <View style={styles.progressStats}>
               <Text style={styles.progressText}>
-                {stats.completedToday} of {stats.totalTasks} tasks completed
+                {stats.completedThisWeek} of {stats.totalTasks} tasks completed
               </Text>
               <Text style={styles.progressPercentage}>
                 {stats.completionRate}%
