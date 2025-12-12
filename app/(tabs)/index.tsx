@@ -1,18 +1,19 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import AddTaskModal from "@/components/tasks/AddTaskModal";
+import { useTask } from "@/hooks/useTasks";
+import { useAuth } from "@/lib/AuthContext";
+import { styles } from "@/styles/homeStyles";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  RefreshControl,
   ActivityIndicator,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
-import { useAuth } from '@/lib/AuthContext'; 
-import { useTask } from '@/hooks/useTasks';
-import { styles } from '@/styles/homeStyles'; 
-import { router } from 'expo-router';
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 const HomeScreen = () => {
   const { user } = useAuth();
@@ -23,19 +24,21 @@ const HomeScreen = () => {
     getUpcomingTasks,
     getOverdueTasks,
     getCompletedTasks,
-  } = useTask(user?.id || '');
+    createTask,
+  } = useTask(user?.id || "");
 
-  const [greeting, setGreeting] = useState('');
+  const [greeting, setGreeting] = useState("");
   const [currentTime, setCurrentTime] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
+  const [addModalVisible, setAddModalVisible] = useState(false);
 
   // Set greeting based on time
   useEffect(() => {
     const updateGreeting = () => {
       const hour = new Date().getHours();
-      if (hour < 12) setGreeting('Good Morning');
-      else if (hour < 18) setGreeting('Good Afternoon');
-      else setGreeting('Good Evening');
+      if (hour < 12) setGreeting("Good Morning");
+      else if (hour < 18) setGreeting("Good Afternoon");
+      else setGreeting("Good Evening");
     };
 
     updateGreeting();
@@ -54,7 +57,6 @@ const HomeScreen = () => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Awal minggu (set ke hari Senin)
     const startOfWeek = new Date(today);
     const day = startOfWeek.getDay(); // 0 = Minggu, 1 = Senin, ...
     const diffToMonday = (day === 0 ? -6 : 1 - day); 
@@ -78,9 +80,9 @@ const HomeScreen = () => {
     }).length;
 
     const completedToday = tasks.filter((task) => {
-      const updatedAt = new Date(task.updatedAt || '');
+      const updatedAt = new Date(task.updatedAt || "");
       return (
-        task.status === 'completed' &&
+        task.status === "completed" &&
         updatedAt >= today &&
         updatedAt < tomorrow
       );
@@ -100,6 +102,7 @@ const HomeScreen = () => {
       totalTasks,
       completedThisWeek,
       completedToday,
+      completedThisWeek,
       upcoming: upcomingTasks.length,
       overdue: overdueTasks.length,
       completionRate,
@@ -118,24 +121,28 @@ const HomeScreen = () => {
   // Category helpers
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'tugas':
-        return '#8B5CF6';
-      case 'jadwal':
-        return '#3B82F6';
-      case 'kegiatan':
-        return '#10B981';
+      case "tugas":
+        return "#8B5CF6";
+      case "jadwal":
+        return "#3B82F6";
+      case "kegiatan":
+        return "#10B981";
       default:
-        return '#6B7280';
+        return "#6B7280";
     }
   };
 
-  const getCategoryIcon = (category: string, color: string, size: number = 20) => {
+  const getCategoryIcon = (
+    category: string,
+    color: string,
+    size: number = 20
+  ) => {
     switch (category) {
-      case 'tugas':
+      case "tugas":
         return <Ionicons name="checkmark-circle" size={size} color={color} />;
-      case 'jadwal':
+      case "jadwal":
         return <Ionicons name="calendar" size={size} color={color} />;
-      case 'kegiatan':
+      case "kegiatan":
         return <Ionicons name="pulse" size={size} color={color} />;
       default:
         return <Ionicons name="flag" size={size} color={color} />;
@@ -146,8 +153,8 @@ const HomeScreen = () => {
     const diff = new Date(deadline).getTime() - Date.now();
     const hours = Math.floor(diff / (1000 * 60 * 60));
 
-    if (diff < 0) return 'Overdue';
-    if (hours < 1) return 'Less than 1h';
+    if (diff < 0) return "Overdue";
+    if (hours < 1) return "Less than 1h";
     if (hours < 24) return `${hours}h remaining`;
 
     const days = Math.floor(hours / 24);
@@ -164,7 +171,7 @@ const HomeScreen = () => {
   // Navigation handlers
   const handleCreateTask = (category?: string) => {
     router.push({
-      pathname: '/tasks/create',
+      pathname: "/tasks/create",
       params: { category },
     });
   };
@@ -176,11 +183,11 @@ const HomeScreen = () => {
   };
 
   const handleViewAllTasks = () => {
-    router.push('/tasks');
+    router.push("/tasks");
   };
 
   // Get user name from email
-  const userName = user?.email?.split('@')[0] || 'User';
+  const userName = user?.email?.split("@")[0] || "User";
   const displayName =
     userName.charAt(0).toUpperCase() + userName.slice(1).toLowerCase();
 
@@ -197,7 +204,7 @@ const HomeScreen = () => {
     <View style={styles.container}>
       {/* Header with Gradient */}
       <LinearGradient
-        colors={['#667eea', '#764ba2', '#f093fb']}
+        colors={["#667eea", "#764ba2", "#f093fb"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.headerGradient}
@@ -207,16 +214,16 @@ const HomeScreen = () => {
             <Text style={styles.greeting}>{greeting} 👋</Text>
             <Text style={styles.userName}>{displayName}</Text>
             <Text style={styles.dateTime}>
-              {currentTime.toLocaleDateString('en-US', {
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric',
+              {currentTime.toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
               })}
             </Text>
           </View>
           <TouchableOpacity
             style={styles.notificationButton}
-            onPress={() => router.push('/notifications')}
+            onPress={() => router.push("/notifications")}
           >
             <Ionicons name="notifications" size={24} color="#fff" />
             {stats.overdue > 0 && (
@@ -239,7 +246,7 @@ const HomeScreen = () => {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor="#667eea"
-            colors={['#667eea', '#764ba2']}
+            colors={["#667eea", "#764ba2"]}
           />
         }
       >
@@ -305,7 +312,7 @@ const HomeScreen = () => {
           <View style={styles.progressCard}>
             <View style={styles.progressHeader}>
               <Ionicons name="bar-chart" size={24} color="#667eea" />
-              <Text style={styles.progressTitle}>Daily Goal</Text>
+              <Text style={styles.progressTitle}>Weekly Goal</Text>
             </View>
 
             <View style={styles.progressBarContainer}>
@@ -379,7 +386,10 @@ const HomeScreen = () => {
                         ]}
                       >
                         <Text
-                          style={[styles.categoryText, { color: categoryColor }]}
+                          style={[
+                            styles.categoryText,
+                            { color: categoryColor },
+                          ]}
                         >
                           {task.category}
                         </Text>
@@ -405,10 +415,10 @@ const HomeScreen = () => {
             <TouchableOpacity
               style={styles.quickActionCard}
               activeOpacity={0.7}
-              onPress={() => handleCreateTask('tugas')}
+              onPress={() => setAddModalVisible(true)}
             >
               <LinearGradient
-                colors={['#8B5CF6', '#7C3AED']}
+                colors={["#8B5CF6", "#7C3AED"]}
                 style={styles.quickActionGradient}
               >
                 <Ionicons name="add" size={24} color="#fff" />
@@ -422,7 +432,7 @@ const HomeScreen = () => {
               onPress={() => router.push("/(tabs)/calendar")}
             >
               <LinearGradient
-                colors={['#3B82F6', '#2563EB']}
+                colors={["#3B82F6", "#2563EB"]}
                 style={styles.quickActionGradient}
               >
                 <Ionicons name="calendar" size={24} color="#fff" />
@@ -430,19 +440,19 @@ const HomeScreen = () => {
               </LinearGradient>
             </TouchableOpacity>
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.quickActionCard}
               activeOpacity={0.7}
-              onPress={() => handleCreateTask('kegiatan')}
+              onPress={() => handleCreateTask("kegiatan")}
             >
               <LinearGradient
-                colors={['#10B981', '#059669']}
+                colors={["#10B981", "#059669"]}
                 style={styles.quickActionGradient}
               >
                 <Ionicons name="pulse" size={24} color="#fff" />
                 <Text style={styles.quickActionText}>Activity</Text>
               </LinearGradient>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             <TouchableOpacity
               style={styles.quickActionCard}
@@ -450,7 +460,7 @@ const HomeScreen = () => {
               onPress={handleViewAllTasks}
             >
               <LinearGradient
-                colors={['#F59E0B', '#D97706']}
+                colors={["#F59E0B", "#D97706"]}
                 style={styles.quickActionGradient}
               >
                 <Ionicons name="flag" size={24} color="#fff" />
@@ -465,7 +475,7 @@ const HomeScreen = () => {
       </ScrollView>
 
       {/* Floating Action Button */}
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.8}
         onPress={() => handleCreateTask()}
@@ -476,7 +486,12 @@ const HomeScreen = () => {
         >
           <Ionicons name="add" size={28} color="#fff" />
         </LinearGradient>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
+      <AddTaskModal
+        visible={addModalVisible}
+        onClose={() => setAddModalVisible(false)}
+        onCreateTask={createTask}
+      />
     </View>
   );
 };

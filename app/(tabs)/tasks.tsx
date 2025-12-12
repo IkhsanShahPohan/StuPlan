@@ -66,8 +66,6 @@ export default function TaskListScreen() {
 
     const deadline = new Date(task.deadline);
     const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    deadline.setHours(0, 0, 0, 0);
     return deadline < now && task.status !== "completed";
   };
 
@@ -548,7 +546,9 @@ export default function TaskListScreen() {
                       style={[
                         styles.statusIndicator,
                         isCompleted && styles.statusIndicatorCompleted,
-                        isOverdue && !isCompleted && styles.statusIndicatorOverdue,
+                        isOverdue &&
+                          !isCompleted &&
+                          styles.statusIndicatorOverdue,
                       ]}
                     />
                     <Text
@@ -638,7 +638,10 @@ export default function TaskListScreen() {
                           color="#007AFF"
                         />
                         <Text style={styles.metaChipTextReminder}>
-                          {task.reminderTime}
+                          {deadline.toLocaleTimeString("id-ID", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </Text>
                       </View>
                     )}
@@ -659,7 +662,7 @@ export default function TaskListScreen() {
                     )}
                   </View>
 
-                  <View style={styles.taskActions}>
+                  {/* <View style={styles.taskActions}>
                     {showConfirmButton && (
                       <TouchableOpacity
                         onPress={(e) => {
@@ -688,10 +691,10 @@ export default function TaskListScreen() {
                         color="#FF3B30"
                       />
                     </TouchableOpacity>
-                  </View>
-                </View>
+                  </View> */}
+              </View>
 
-                {isCompleted && (
+                {/* {isCompleted && (
                   <View style={styles.completedOverlay}>
                     <View style={styles.completedBadge}>
                       <Ionicons
@@ -702,7 +705,7 @@ export default function TaskListScreen() {
                       <Text style={styles.completedBadgeText}>Selesai</Text>
                     </View>
                   </View>
-                )}
+                )} */}
 
                 {isOverdue && !isCompleted && (
                   <View style={styles.overdueBadge}>

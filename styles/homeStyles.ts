@@ -379,13 +379,13 @@ export const styles = StyleSheet.create({
   // Quick Actions
   quickActionsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    // flexWrap: 'wrap',
     gap: CARD_GAP,
     marginTop: 12,
   },
 
   quickActionCard: {
-    width: (width - 40 - CARD_GAP) / 2,
+    width: "31%",
     height: 120,
     borderRadius: 20,
     overflow: 'hidden',
