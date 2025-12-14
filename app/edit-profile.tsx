@@ -140,7 +140,7 @@ export default function EditProfileScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Edit Profil</Text>
           <Text style={styles.headerSubtitle}>
-            Kelengkapan: {profileCompletion}%
+            Ubah informasi profil anda!
           </Text>
         </View>
         <TouchableOpacity
@@ -160,7 +160,7 @@ export default function EditProfileScreen() {
       </View>
 
       {/* Profile Completion Bar */}
-      <View style={styles.progressContainer}>
+      {/* <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
           <View style={[styles.progressFill]} />
         </View>
@@ -169,7 +169,7 @@ export default function EditProfileScreen() {
             ? "Profil Lengkap! ✨"
             : `${4 - Math.ceil(profileCompletion / 25)} field lagi`}
         </Text>
-      </View>
+      </View> */}
 
       <ScrollView
         style={styles.content}
@@ -327,7 +327,7 @@ export default function EditProfileScreen() {
         </View>
 
         {/* Info Card */}
-        <View style={styles.infoCard}>
+        {/* <View style={styles.infoCard}>
           <Ionicons name="information-circle" size={24} color="#007AFF" />
           <View style={styles.infoTextContainer}>
             <Text style={styles.infoTitle}>Kenapa data ini penting?</Text>
@@ -336,7 +336,7 @@ export default function EditProfileScreen() {
               personal dan rekomendasi yang sesuai dengan kebutuhan Anda.
             </Text>
           </View>
-        </View>
+        </View> */}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>

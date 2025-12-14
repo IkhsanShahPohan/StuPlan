@@ -1,27 +1,31 @@
+import { useAlert } from "@/components/useAlert";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
-  StatusBar,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "../../lib/supabase";
 
 const { height, width } = Dimensions.get("window");
 
 export default function ResetPassword() {
   const router = useRouter();
+  const alert = useAlert();
+
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
@@ -41,13 +45,13 @@ export default function ResetPassword() {
   // Step 1: Kirim OTP ke email
   async function handleSendOtp() {
     if (!email) {
-      Alert.alert("Error", "Please enter your email address");
+      alert.warning("Error", "Masukkan alamat email Anda");
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert("Error", "Invalid email format");
+      alert.warning("Error", "Format email tidak valid");
       return;
     }
 
@@ -59,28 +63,29 @@ export default function ResetPassword() {
       });
 
       if (error) throw error;
+      await supabase.auth.signOut();
 
-      Alert.alert(
-        "OTP Sent! 📧",
-        "A 6-digit OTP code has been sent to your email. Please check your inbox or spam folder.",
+      alert.success(
+        "OTP Terkirim! 📧",
+        "Kode OTP 6 digit telah dikirim ke email Anda. Silakan cek inbox atau folder spam.",
         [{ text: "OK", onPress: () => setStep("otp") }]
       );
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to send OTP");
+      alert.error("Error", error.message || "Gagal mengirim OTP");
     } finally {
       setLoading(false);
     }
   }
 
-  // Step 2: Verifikasi OTP
+  // Step 2: Verifikasi OTP (TIDAK LANGSUNG LOGIN)
   async function handleVerifyOtp() {
     if (!otp) {
-      Alert.alert("Error", "Please enter the OTP code");
+      alert.warning("Error", "Masukkan kode OTP");
       return;
     }
 
     if (otp.length !== 6) {
-      Alert.alert("Error", "OTP code must be 6 digits");
+      alert.warning("Error", "Kode OTP harus 6 digit");
       return;
     }
 
@@ -95,11 +100,17 @@ export default function ResetPassword() {
 
       if (error) throw error;
 
-      Alert.alert("OTP Verified! ✅", "Please create your new password.", [
-        { text: "OK", onPress: () => setStep("password") },
-      ]);
+      // LANGSUNG KE STEP 3 TANPA LOGIN
+      alert.success(
+        "OTP Terverifikasi! ✅",
+        "Silakan buat password baru Anda.",
+        [{ text: "OK", onPress: () => setStep("password") }]
+      );
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Invalid or expired OTP code");
+      alert.error(
+        "Error",
+        error.message || "Kode OTP tidak valid atau kadaluarsa"
+      );
     } finally {
       setLoading(false);
     }
@@ -108,17 +119,17 @@ export default function ResetPassword() {
   // Step 3: Reset password
   async function handleResetPassword() {
     if (!password || !confirmPassword) {
-      Alert.alert("Error", "Please fill in all fields");
+      alert.warning("Form Tidak Lengkap", "Isi semua field");
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters");
+    if (password.length < 8) {
+      alert.warning("Password Terlalu Pendek", "Password minimal 8 karakter");
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match");
+      alert.warning("Password Tidak Cocok", "Password tidak sama");
       return;
     }
 
@@ -131,9 +142,9 @@ export default function ResetPassword() {
 
       if (error) throw error;
 
-      Alert.alert(
-        "Success! 🎉",
-        "Your password has been successfully changed. Please sign in with your new password.",
+      alert.success(
+        "Berhasil! 🎉",
+        "Password Anda berhasil diubah. Silakan login dengan password baru.",
         [
           {
             text: "OK",
@@ -145,7 +156,7 @@ export default function ResetPassword() {
         ]
       );
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to change password");
+      alert.error("Error", error.message || "Gagal mengubah password");
     } finally {
       setLoading(false);
     }
@@ -157,379 +168,439 @@ export default function ResetPassword() {
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}
+        keyboardVerticalOffset={0}
       >
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Background Decorative Elements */}
-          <View style={styles.bgCircle1} />
-          <View style={styles.bgCircle2} />
-          <View style={styles.bgCircle3} />
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Background Decorative Elements */}
+            <View style={styles.bgCircle1} />
+            <View style={styles.bgCircle2} />
+            <View style={styles.bgCircle3} />
 
-          <View style={styles.content}>
-            {/* Logo Section */}
-            <View style={styles.logoContainer}>
-              <View style={styles.logoWrapper}>
-                <Ionicons name="key" size={60} color="#2563eb" />
+            <View style={styles.content}>
+              {/* Logo Section */}
+              <View style={styles.logoContainer}>
+                <View style={styles.logoWrapper}>
+                  <Ionicons name="key" size={60} color="#2563eb" />
+                </View>
+                <Text style={styles.title}>Reset Password</Text>
+                <Text style={styles.subtitle}>
+                  {step === "email" && "Masukkan email untuk menerima OTP"}
+                  {step === "otp" && "Verifikasi kode OTP Anda"}
+                  {step === "password" && "Buat password baru Anda"}
+                </Text>
               </View>
-              <Text style={styles.title}>Reset Password</Text>
-              <Text style={styles.subtitle}>
-                {step === "email" && "Enter your email to receive OTP"}
-                {step === "otp" && "Verify your OTP code"}
-                {step === "password" && "Create your new password"}
-              </Text>
-            </View>
 
-            {/* Progress Indicator */}
-            <View style={styles.progressContainer}>
-              <View style={styles.progressWrapper}>
-                <View
-                  style={[
-                    styles.progressStep,
-                    step === "email" && styles.progressStepActive,
-                  ]}
-                >
-                  <Text
+              {/* Progress Indicator */}
+              <View style={styles.progressContainer}>
+                <View style={styles.progressWrapper}>
+                  <View
                     style={[
-                      styles.progressStepText,
-                      step === "email" && styles.progressStepTextActive,
+                      styles.progressStep,
+                      step === "email" && styles.progressStepActive,
                     ]}
                   >
-                    1
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.progressLine,
-                    step !== "email" && styles.progressLineActive,
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.progressStep,
-                    step === "otp" && styles.progressStepActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.progressStepText,
-                      step === "otp" && styles.progressStepTextActive,
-                    ]}
-                  >
-                    2
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.progressLine,
-                    step === "password" && styles.progressLineActive,
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.progressStep,
-                    step === "password" && styles.progressStepActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.progressStepText,
-                      step === "password" && styles.progressStepTextActive,
-                    ]}
-                  >
-                    3
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Form Card */}
-            <View style={styles.card}>
-              {/* STEP 1: EMAIL INPUT */}
-              {step === "email" && (
-                <View>
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.label}>EMAIL ADDRESS</Text>
-                    <View
+                    <Text
                       style={[
-                        styles.inputWrapper,
-                        emailFocused && styles.inputWrapperFocused,
+                        styles.progressStepText,
+                        step === "email" && styles.progressStepTextActive,
                       ]}
                     >
-                      <Ionicons
-                        name="mail-outline"
-                        size={20}
-                        color={emailFocused ? "#2563eb" : "#9ca3af"}
-                        style={styles.inputIcon}
-                      />
-                      <TextInput
-                        placeholder="your@email.com"
-                        placeholderTextColor="#9ca3af"
-                        value={email}
-                        onChangeText={setEmail}
-                        onFocus={() => setEmailFocused(true)}
-                        onBlur={() => setEmailFocused(false)}
-                        autoCapitalize="none"
-                        keyboardType="email-address"
-                        style={styles.input}
-                        editable={!loading}
-                      />
-                    </View>
+                      1
+                    </Text>
                   </View>
-
-                  <TouchableOpacity
-                    onPress={handleSendOtp}
-                    disabled={loading}
-                    activeOpacity={0.85}
-                    style={styles.buttonContainer}
+                  <View
+                    style={[
+                      styles.progressLine,
+                      step !== "email" && styles.progressLineActive,
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.progressStep,
+                      step === "otp" && styles.progressStepActive,
+                    ]}
                   >
-                    <LinearGradient
-                      colors={["#1e40af", "#2563eb", "#3b82f6"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.button}
+                    <Text
+                      style={[
+                        styles.progressStepText,
+                        step === "otp" && styles.progressStepTextActive,
+                      ]}
                     >
-                      {loading ? (
-                        <ActivityIndicator size="small" color="#ffffff" />
-                      ) : (
-                        <Text style={styles.buttonText}>Send OTP Code</Text>
-                      )}
-                    </LinearGradient>
-                  </TouchableOpacity>
+                      2
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.progressLine,
+                      step === "password" && styles.progressLineActive,
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.progressStep,
+                      step === "password" && styles.progressStepActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.progressStepText,
+                        step === "password" && styles.progressStepTextActive,
+                      ]}
+                    >
+                      3
+                    </Text>
+                  </View>
                 </View>
-              )}
+              </View>
 
-              {/* STEP 2: OTP INPUT */}
-              {step === "otp" && (
-                <View>
-                  <View style={styles.emailPreview}>
-                    <View style={styles.emailPreviewContent}>
-                      <Ionicons name="mail" size={18} color="#2563eb" />
-                      <View style={styles.emailPreviewText}>
-                        <Text style={styles.emailPreviewLabel}>Sending to</Text>
-                        <Text style={styles.emailPreviewEmail}>{email}</Text>
+              {/* Form Card */}
+              <View style={styles.card}>
+                {/* STEP 1: EMAIL INPUT */}
+                {step === "email" && (
+                  <View>
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.label}>ALAMAT EMAIL</Text>
+                      <View
+                        style={[
+                          styles.inputWrapper,
+                          emailFocused && styles.inputWrapperFocused,
+                        ]}
+                      >
+                        <Ionicons
+                          name="mail-outline"
+                          size={20}
+                          color={emailFocused ? "#2563eb" : "#9ca3af"}
+                          style={styles.inputIcon}
+                        />
+                        <TextInput
+                          placeholder="email@anda.com"
+                          placeholderTextColor="#9ca3af"
+                          value={email}
+                          onChangeText={setEmail}
+                          onFocus={() => setEmailFocused(true)}
+                          onBlur={() => setEmailFocused(false)}
+                          autoCapitalize="none"
+                          keyboardType="email-address"
+                          style={styles.input}
+                          editable={!loading}
+                          returnKeyType="done"
+                          onSubmitEditing={handleSendOtp}
+                        />
                       </View>
-                      <TouchableOpacity
-                        onPress={() => setStep("email")}
-                        disabled={loading}
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={handleSendOtp}
+                      disabled={loading}
+                      activeOpacity={0.85}
+                      style={styles.buttonContainer}
+                    >
+                      <LinearGradient
+                        colors={["#1e40af", "#2563eb", "#3b82f6"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.button}
                       >
-                        <Text style={styles.changeEmailText}>Change</Text>
-                      </TouchableOpacity>
+                        {loading ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <Text style={styles.buttonText}>Kirim Kode OTP</Text>
+                        )}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* STEP 2: OTP INPUT */}
+                {step === "otp" && (
+                  <View>
+                    <View style={styles.emailPreview}>
+                      <View style={styles.emailPreviewContent}>
+                        <Ionicons name="mail" size={18} color="#2563eb" />
+                        <View style={styles.emailPreviewText}>
+                          <Text style={styles.emailPreviewLabel}>
+                            Terkirim ke
+                          </Text>
+                          <Text style={styles.emailPreviewEmail}>{email}</Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => setStep("email")}
+                          disabled={loading}
+                        >
+                          <Text style={styles.changeEmailText}>Ubah</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                  </View>
 
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.label}>ENTER 6-DIGIT OTP CODE</Text>
-                    <View
-                      style={[
-                        styles.inputWrapper,
-                        otpFocused && styles.inputWrapperFocused,
-                      ]}
-                    >
-                      <Ionicons
-                        name="shield-checkmark-outline"
-                        size={20}
-                        color={otpFocused ? "#2563eb" : "#9ca3af"}
-                        style={styles.inputIcon}
-                      />
-                      <TextInput
-                        placeholder="000000"
-                        placeholderTextColor="#9ca3af"
-                        value={otp}
-                        onChangeText={(text) =>
-                          setOtp(text.replace(/[^0-9]/g, ""))
-                        }
-                        onFocus={() => setOtpFocused(true)}
-                        onBlur={() => setOtpFocused(false)}
-                        keyboardType="number-pad"
-                        maxLength={6}
-                        style={styles.otpInput}
-                        editable={!loading}
-                      />
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    onPress={handleVerifyOtp}
-                    disabled={loading}
-                    activeOpacity={0.85}
-                    style={styles.buttonContainer}
-                  >
-                    <LinearGradient
-                      colors={["#1e40af", "#2563eb", "#3b82f6"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.button}
-                    >
-                      {loading ? (
-                        <ActivityIndicator size="small" color="#ffffff" />
-                      ) : (
-                        <Text style={styles.buttonText}>Verify OTP</Text>
-                      )}
-                    </LinearGradient>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={handleSendOtp}
-                    disabled={loading}
-                    style={styles.resendButton}
-                  >
-                    <Text style={styles.resendButtonText}>Resend OTP Code</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {/* STEP 3: PASSWORD INPUT */}
-              {step === "password" && (
-                <View>
-                  <View style={styles.verifiedBadge}>
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={18}
-                      color="#10b981"
-                    />
-                    <Text style={styles.verifiedText}>{email}</Text>
-                  </View>
-
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.label}>NEW PASSWORD</Text>
-                    <View
-                      style={[
-                        styles.inputWrapper,
-                        passwordFocused && styles.inputWrapperFocused,
-                      ]}
-                    >
-                      <Ionicons
-                        name="lock-closed-outline"
-                        size={20}
-                        color={passwordFocused ? "#2563eb" : "#9ca3af"}
-                        style={styles.inputIcon}
-                      />
-                      <TextInput
-                        placeholder="Min. 6 characters"
-                        placeholderTextColor="#9ca3af"
-                        value={password}
-                        onChangeText={setPassword}
-                        onFocus={() => setPasswordFocused(true)}
-                        onBlur={() => setPasswordFocused(false)}
-                        secureTextEntry={!showPassword}
-                        autoCapitalize="none"
-                        style={[styles.input, styles.inputPassword]}
-                        editable={!loading}
-                      />
-                      <TouchableOpacity
-                        onPress={() => setShowPassword(!showPassword)}
-                        style={styles.eyeIcon}
-                        activeOpacity={0.7}
-                        disabled={loading}
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.label}>KODE OTP 6 DIGIT</Text>
+                      <View
+                        style={[
+                          styles.inputWrapper,
+                          otpFocused && styles.inputWrapperFocused,
+                        ]}
                       >
                         <Ionicons
-                          name={
-                            showPassword ? "eye-outline" : "eye-off-outline"
-                          }
-                          size={22}
-                          color="#9ca3af"
+                          name="shield-checkmark-outline"
+                          size={20}
+                          color={otpFocused ? "#2563eb" : "#9ca3af"}
+                          style={styles.inputIcon}
                         />
-                      </TouchableOpacity>
+                        <TextInput
+                          placeholder="000000"
+                          placeholderTextColor="#9ca3af"
+                          value={otp}
+                          onChangeText={(text) =>
+                            setOtp(text.replace(/[^0-9]/g, ""))
+                          }
+                          onFocus={() => setOtpFocused(true)}
+                          onBlur={() => setOtpFocused(false)}
+                          keyboardType="number-pad"
+                          maxLength={6}
+                          style={styles.otpInput}
+                          editable={!loading}
+                          returnKeyType="done"
+                          onSubmitEditing={handleVerifyOtp}
+                        />
+                      </View>
                     </View>
-                  </View>
 
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.label}>CONFIRM NEW PASSWORD</Text>
-                    <View
-                      style={[
-                        styles.inputWrapper,
-                        confirmPasswordFocused && styles.inputWrapperFocused,
-                      ]}
+                    <TouchableOpacity
+                      onPress={handleVerifyOtp}
+                      disabled={loading}
+                      activeOpacity={0.85}
+                      style={styles.buttonContainer}
                     >
+                      <LinearGradient
+                        colors={["#1e40af", "#2563eb", "#3b82f6"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.button}
+                      >
+                        {loading ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <Text style={styles.buttonText}>Verifikasi OTP</Text>
+                        )}
+                      </LinearGradient>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={handleSendOtp}
+                      disabled={loading}
+                      style={styles.resendButton}
+                    >
+                      <Text style={styles.resendButtonText}>
+                        Kirim Ulang Kode OTP
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* STEP 3: PASSWORD INPUT - MIRIP CHANGE PASSWORD */}
+                {step === "password" && (
+                  <View>
+                    <View style={styles.verifiedBadge}>
                       <Ionicons
-                        name="shield-checkmark-outline"
-                        size={20}
-                        color={confirmPasswordFocused ? "#2563eb" : "#9ca3af"}
-                        style={styles.inputIcon}
+                        name="checkmark-circle"
+                        size={18}
+                        color="#10b981"
                       />
-                      <TextInput
-                        placeholder="Re-enter your password"
-                        placeholderTextColor="#9ca3af"
-                        value={confirmPassword}
-                        onChangeText={setConfirmPassword}
-                        onFocus={() => setConfirmPasswordFocused(true)}
-                        onBlur={() => setConfirmPasswordFocused(false)}
-                        secureTextEntry={!showConfirmPassword}
-                        autoCapitalize="none"
-                        style={[styles.input, styles.inputPassword]}
-                        editable={!loading}
+                      <Text style={styles.verifiedText}>{email}</Text>
+                    </View>
+
+                    {/* Info Card */}
+                    <View style={styles.infoCard}>
+                      <Ionicons
+                        name="information-circle"
+                        size={18}
+                        color="#2563eb"
                       />
-                      <TouchableOpacity
-                        onPress={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
-                        }
-                        style={styles.eyeIcon}
-                        activeOpacity={0.7}
-                        disabled={loading}
+                      <Text style={styles.infoText}>
+                        Password minimal 8 karakter.
+                      </Text>
+                    </View>
+
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.label}>PASSWORD BARU *</Text>
+                      <View
+                        style={[
+                          styles.inputWrapper,
+                          passwordFocused && styles.inputWrapperFocused,
+                        ]}
                       >
                         <Ionicons
-                          name={
-                            showConfirmPassword
-                              ? "eye-outline"
-                              : "eye-off-outline"
-                          }
-                          size={22}
-                          color="#9ca3af"
+                          name="lock-closed-outline"
+                          size={20}
+                          color={passwordFocused ? "#2563eb" : "#9ca3af"}
+                          style={styles.inputIcon}
                         />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    onPress={handleResetPassword}
-                    disabled={loading}
-                    activeOpacity={0.85}
-                    style={styles.buttonContainer}
-                  >
-                    <LinearGradient
-                      colors={["#1e40af", "#2563eb", "#3b82f6"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.button}
-                    >
-                      {loading ? (
-                        <ActivityIndicator size="small" color="#ffffff" />
-                      ) : (
-                        <Text style={styles.buttonText}>Reset Password</Text>
+                        <TextInput
+                          placeholder="Masukkan password baru"
+                          placeholderTextColor="#9ca3af"
+                          value={password}
+                          onChangeText={setPassword}
+                          onFocus={() => setPasswordFocused(true)}
+                          onBlur={() => setPasswordFocused(false)}
+                          secureTextEntry={!showPassword}
+                          autoCapitalize="none"
+                          style={[styles.input, styles.inputPassword]}
+                          editable={!loading}
+                          returnKeyType="next"
+                        />
+                        <TouchableOpacity
+                          onPress={() => setShowPassword(!showPassword)}
+                          style={styles.eyeIcon}
+                          activeOpacity={0.7}
+                          disabled={loading}
+                        >
+                          <Ionicons
+                            name={
+                              showPassword ? "eye-outline" : "eye-off-outline"
+                            }
+                            size={22}
+                            color="#9ca3af"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                      {password && (
+                        <Text style={styles.helperText}>
+                          {password.length}/8 karakter
+                        </Text>
                       )}
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
-              )}
+                    </View>
 
-              {/* Back to Sign In - Always visible */}
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.label}>
+                        KONFIRMASI PASSWORD BARU *
+                      </Text>
+                      <View
+                        style={[
+                          styles.inputWrapper,
+                          confirmPasswordFocused && styles.inputWrapperFocused,
+                        ]}
+                      >
+                        <Ionicons
+                          name="shield-checkmark-outline"
+                          size={20}
+                          color={confirmPasswordFocused ? "#2563eb" : "#9ca3af"}
+                          style={styles.inputIcon}
+                        />
+                        <TextInput
+                          placeholder="Ulangi password baru"
+                          placeholderTextColor="#9ca3af"
+                          value={confirmPassword}
+                          onChangeText={setConfirmPassword}
+                          onFocus={() => setConfirmPasswordFocused(true)}
+                          onBlur={() => setConfirmPasswordFocused(false)}
+                          secureTextEntry={!showConfirmPassword}
+                          autoCapitalize="none"
+                          style={[styles.input, styles.inputPassword]}
+                          editable={!loading}
+                          returnKeyType="done"
+                          onSubmitEditing={handleResetPassword}
+                        />
+                        <TouchableOpacity
+                          onPress={() =>
+                            setShowConfirmPassword(!showConfirmPassword)
+                          }
+                          style={styles.eyeIcon}
+                          activeOpacity={0.7}
+                          disabled={loading}
+                        >
+                          <Ionicons
+                            name={
+                              showConfirmPassword
+                                ? "eye-outline"
+                                : "eye-off-outline"
+                            }
+                            size={22}
+                            color="#9ca3af"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                      {confirmPassword && password && (
+                        <View style={styles.matchIndicator}>
+                          {confirmPassword === password ? (
+                            <>
+                              <Ionicons
+                                name="checkmark-circle"
+                                size={16}
+                                color="#34C759"
+                              />
+                              <Text style={styles.matchTextSuccess}>
+                                Password cocok
+                              </Text>
+                            </>
+                          ) : (
+                            <>
+                              <Ionicons
+                                name="close-circle"
+                                size={16}
+                                color="#FF3B30"
+                              />
+                              <Text style={styles.matchTextError}>
+                                Password tidak cocok
+                              </Text>
+                            </>
+                          )}
+                        </View>
+                      )}
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={handleResetPassword}
+                      disabled={loading}
+                      activeOpacity={0.85}
+                      style={styles.buttonContainer}
+                    >
+                      <LinearGradient
+                        colors={["#1e40af", "#2563eb", "#3b82f6"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.button}
+                      >
+                        {loading ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <Text style={styles.buttonText}>Reset Password</Text>
+                        )}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Back to Sign In - Always visible */}
+                <View style={styles.divider}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>ATAU</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => router.push("/(auth)/sign-in")}
+                  disabled={loading}
+                  activeOpacity={0.7}
+                  style={styles.backButton}
+                >
+                  <Text style={styles.backButtonText}>Kembali ke Login</Text>
+                </TouchableOpacity>
               </View>
 
-              <TouchableOpacity
-                onPress={() => router.push("/(auth)/sign-in")}
-                disabled={loading}
-                activeOpacity={0.7}
-                style={styles.backButton}
-              >
-                <Text style={styles.backButtonText}>Back to Sign In</Text>
-              </TouchableOpacity>
+              {/* Bottom Text */}
+              {/* <View style={styles.bottomTextContainer}>
+                <Ionicons name="shield-checkmark" size={16} color="#9ca3af" />
+                <Text style={styles.bottomText}>Pemulihan Password Aman</Text>
+              </View> */}
             </View>
-
-            {/* Bottom Text */}
-            <View style={styles.bottomTextContainer}>
-              <Ionicons name="shield-checkmark" size={16} color="#9ca3af" />
-              <Text style={styles.bottomText}>Secure Password Recovery</Text>
-            </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </>
   );
@@ -708,6 +779,47 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 16,
     padding: 4,
+  },
+  helperText: {
+    fontSize: 13,
+    color: "#9ca3af",
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  matchIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  matchTextSuccess: {
+    fontSize: 13,
+    color: "#34C759",
+    fontWeight: "600",
+  },
+  matchTextError: {
+    fontSize: 13,
+    color: "#FF3B30",
+    fontWeight: "600",
+  },
+  infoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 14,
+    backgroundColor: "#eff6ff",
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#2563eb",
+    lineHeight: 18,
+    fontWeight: "500",
   },
   emailPreview: {
     backgroundColor: "#eff6ff",

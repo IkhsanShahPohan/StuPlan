@@ -102,7 +102,7 @@ export default function InsertUsersScreen() {
       content: {
         title: "Hei man, how is your day?",
         body: "Here is the notification body",
-        // vibrate:
+        sound: "tung.mp3",
         data: {
           data: "goes here",
           test: { test1: "more data" },
@@ -129,7 +129,11 @@ export default function InsertUsersScreen() {
   }
 
   async function cancelAllNotifications() {
-    const arr = ["c613a295-3fbe-499a-b920-1897a9a1b545"];
+    const arr = [
+      "082ef028-af12-47e0-a3cb-e3c9652142fd",
+      "1dc02b2a-290a-418a-bdc3-ea237585856c",
+      "32f80555-1980-43bd-b4cc-812488416e4d",
+    ];
 
     for (const id of arr) {
       await scheduleAndCancel(id);

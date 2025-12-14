@@ -33,7 +33,7 @@
           "image": "./assets/splash-icon.png",
 
           "dark": {
-            "image": "./assets/splash-icon-dark.png",
+            "image": "./assets/splash-icon.png",
             "backgroundColor": "#fff"
           },
           "imageWidth": 200
@@ -44,7 +44,13 @@
         {
           "icon": "./assets/images/icon-pm.png",
           "color": "#ffffff",
-          "defaultChannel": "default",
+          "defaultChannel": "myNotificationChannel",
+          "sounds": [
+            "./assets/sounds/water.mp3",
+            "./assets/sounds/downer.mp3",
+            "./assets/sounds/guitar.mp3",
+            "./assets/sounds/tung.mp3"
+          ],
           "enableBackgroundRemoteNotifications": false
         }
       ],

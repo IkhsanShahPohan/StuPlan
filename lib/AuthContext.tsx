@@ -77,15 +77,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const inAuthGroup = segments[0] === "(auth)";
     const inOnboarding = segments[0] === "onboarding";
+    const inResetPassword = segments.includes("reset-password"); // 👈 TAMBAHKAN INI
 
     if (!user && !inAuthGroup) {
-      // Tidak ada user, redirect ke sign-in
       router.replace("/sign-in");
     } else if (user && needsOnboarding && !inOnboarding) {
-      // User ada tapi belum onboarding
       router.replace("/onboarding");
-    } else if (user && !needsOnboarding && (inAuthGroup || inOnboarding)) {
-      // User sudah complete onboarding, tapi masih di auth group
+    } else if (
+      user &&
+      !needsOnboarding &&
+      (inAuthGroup || inOnboarding) &&
+      !inResetPassword
+    ) {
+      // 👈 TAMBAHKAN !inResetPassword
       router.replace("/(tabs)");
     }
   }, [user, loading, needsOnboarding, segments]);
