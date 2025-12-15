@@ -1,6 +1,6 @@
 import { tasks, users } from "@/db/schema"; // schema kamu
 import { supabase } from "@/lib/supabase";
-import { eq } from "drizzle-orm";
+import { and, eq, gte, lte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import * as Notifications from "expo-notifications";
 import { useSQLiteContext } from "expo-sqlite";
@@ -46,6 +46,15 @@ export default function InsertUsersScreen() {
       console.log("Tasks:", JSON.stringify(result, null, 2));
     } catch (error) {
       console.error("Select error:", error);
+    }
+  };
+
+  const delTask = async () => {
+    try {
+      await db.delete(tasks).where(and(gte(tasks.id, 46), lte(tasks.id, 64)));
+      console.log("Success!");
+    } catch (error) {
+      console.log("Gagal");
     }
   };
 
@@ -210,6 +219,13 @@ export default function InsertUsersScreen() {
           onPress={cancelAllNotifications}
         >
           <Text style={styles.buttonText}>Cancel Notification</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          activeOpacity={0.7}
+          onPress={delTask}
+        >
+          <Text style={styles.buttonText}>Hapus Task!</Text>
         </TouchableOpacity>
       </View>
     </View>

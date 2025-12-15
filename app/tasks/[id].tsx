@@ -469,21 +469,21 @@ export default function TaskDetailScreen() {
                     styles.overdueText,
                 ]}
               >
-                {task.repeatOption === "yearly"
+                {task.repeatMode === "yearly"
                   ? deadline.toLocaleDateString("id-ID", {
                       day: "numeric",
                       month: "long",
                     })
-                  : task.repeatOption === "monthly"
+                  : task.repeatMode === "monthly"
                     ? deadline.toLocaleDateString("id-ID", {
                         day: "numeric",
                         month: "long",
                       })
-                    : task.repeatOption === "weekly"
+                    : task.repeatMode === "weekly"
                       ? deadline.toLocaleDateString("id-ID", {
                           weekday: "long",
                         })
-                      : task.repeatOption === "daily"
+                      : task.repeatMode === "daily"
                         ? "Setiap hari!"
                         : deadline.toLocaleDateString("id-ID", {
                             weekday: "long",
@@ -545,7 +545,7 @@ export default function TaskDetailScreen() {
         )}
 
         {/* Repeat Card */}
-        {task.repeatEnabled && task.repeatOption !== "none" && (
+        {task.repeatEnabled && task.repeatMode !== "none" && (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <View style={styles.cardHeaderLeft}>
@@ -558,11 +558,11 @@ export default function TaskDetailScreen() {
               <View style={styles.repeatBadge}>
                 <Ionicons name="sync" size={16} color="#F57C00" />
                 <Text style={styles.repeatBadgeText}>
-                  {task.repeatOption === "daily" && "Setiap Hari"}
-                  {task.repeatOption === "weekly" && "Setiap Minggu"}
-                  {task.repeatOption === "monthly" && "Setiap Bulan"}
-                  {task.repeatOption === "yearly" && "Setiap Tahun"}
-                  {task.repeatOption === "custom" &&
+                  {task.repeatMode === "daily" && "Setiap Hari"}
+                  {task.repeatMode === "weekly" && "Setiap Minggu"}
+                  {task.repeatMode === "monthly" && "Setiap Bulan"}
+                  {task.repeatMode === "yearly" && "Setiap Tahun"}
+                  {task.repeatMode === "custom" &&
                     `Setiap ${task.customInterval} ${task.customUnit}`}
                 </Text>
               </View>
@@ -761,7 +761,14 @@ export default function TaskDetailScreen() {
           <View style={styles.actionButtonsContainer}>
             <TouchableOpacity
               style={styles.editButton}
-              onPress={() => setIsEditTaskModal(true)}
+              onPress={() =>
+                router.push({
+                  pathname: "/tasks/edit",
+                  params: {
+                    id: task.id, // atau kirim object lain
+                  },
+                })
+              }
               activeOpacity={0.8}
             >
               <Ionicons name="pencil" size={20} color="#FFFFFF" />

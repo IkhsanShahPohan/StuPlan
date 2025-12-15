@@ -8,21 +8,21 @@ import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StatusBar,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Animated, {
-    FadeIn,
-    FadeInRight,
-    FadeOutLeft,
-    Layout,
+  FadeIn,
+  FadeInRight,
+  FadeOutLeft,
+  Layout,
 } from "react-native-reanimated";
 
 interface OnboardingData {
@@ -129,8 +129,9 @@ export default function OnboardingScreen() {
 
       console.log("✅ Onboarding data saved successfully");
 
-      // 3. Navigate to main app - AuthContext will handle the redirect
-      router.replace("/(tabs)");
+      // 🆕 3. REDIRECT KE BACKUP SCREEN (bukan ke tabs)
+      // User baru akan ditanya apakah ingin backup data
+      router.replace("/backup");
     } catch (error) {
       console.error("❌ Error saving onboarding data:", error);
       alert("Gagal menyimpan data. Silakan coba lagi.");
@@ -363,7 +364,7 @@ export default function OnboardingScreen() {
                 ) : (
                   <Text className="text-white text-center font-semibold text-base tracking-wide">
                     {currentStep === totalSteps
-                      ? "Selesai & Mulai"
+                      ? "Selesai & Lanjutkan"
                       : "Lanjutkan"}
                   </Text>
                 )}

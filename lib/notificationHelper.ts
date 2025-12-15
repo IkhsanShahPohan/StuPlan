@@ -8,13 +8,14 @@ export interface NotificationConfig {
   category: "tugas" | "jadwal" | "kegiatan";
   deadline: Date;
   reminderEnabled: boolean;
-  reminderDaysBefore: number;
-  reminderTime: string; // Format HH:mm
+  reminderMinutes: number; // Negatif dari deadline
+  reminderTime: Date; // Calculated reminder datetime
   repeatEnabled: boolean;
-  repeatOption: "none" | "daily" | "weekly" | "monthly" | "yearly" | "custom";
-  customInterval?: number;
-  customUnit?: "days" | "weeks" | "months" | "years";
-  endOption?: "never" | "deadline";
+  repeatMode?: "daily" | "weekly" | "monthly" | "yearly";
+  repeatInterval?: number; // 1-6
+  selectedDays?: number[]; // Array of day indices untuk weekly
+  repeatEndOption?: "never" | "months";
+  repeatEndMonths?: number; // 1-6 bulan
 }
 
 /**
@@ -34,7 +35,6 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
     return false;
   }
 
-  // Setup notification channel untuk Android
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("default", {
       name: "Default",
@@ -48,7 +48,7 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
 };
 
 /**
- * Membuat notifikasi berdasarkan konfigurasi task
+ * Main function: Schedule task notifications
  */
 export const scheduleTaskNotifications = async (
   config: NotificationConfig
@@ -65,17 +65,21 @@ export const scheduleTaskNotifications = async (
   }
 
   try {
-    // Parse reminder time (HH:mm)
-    const [hours, minutes] = config.reminderTime.split(":").map(Number);
-
     if (config.category === "tugas") {
-      // TUGAS: Create multiple notifications sampai deadline
-      const ids = await scheduleTaskReminders(config, hours, minutes);
+      // TUGAS: Generate multiple notifications sampai deadline
+      const ids = await scheduleTaskReminders(config);
       notificationIds.push(...ids);
     } else {
-      // JADWAL & KEGIATAN: Create recurring notification
-      const id = await scheduleRecurringReminder(config, hours, minutes);
-      if (id) notificationIds.push(id);
+      // JADWAL & KEGIATAN
+      if (config.repeatEnabled && config.repeatEndOption === "never") {
+        // Use recurring notification
+        const id = await scheduleRecurringReminder(config);
+        if (id) notificationIds.push(id);
+      } else {
+        // Generate multiple notifications (1-6 bulan)
+        const ids = await scheduleJadwalKegiatanReminders(config);
+        notificationIds.push(...ids);
+      }
     }
 
     console.log(
@@ -89,36 +93,27 @@ export const scheduleTaskNotifications = async (
 };
 
 /**
- * Schedule notifications untuk TUGAS (multiple notifications sampai deadline)
+ * Schedule notifications untuk TUGAS
+ * Generate multiple single notifications sampai deadline
  */
 const scheduleTaskReminders = async (
-  config: NotificationConfig,
-  hours: number,
-  minutes: number
+  config: NotificationConfig
 ): Promise<string[]> => {
-  console.log("config ", config);
   const notificationIds: string[] = [];
   const now = new Date();
   const deadline = new Date(config.deadline);
 
-  // Hitung tanggal reminder pertama
-  const firstReminderDate = new Date(new Date());
-  firstReminderDate.setDate(new Date().getDate() - config.reminderDaysBefore);
-  firstReminderDate.setHours(hours, minutes, 0, 0);
+  // First reminder time (calculated from reminderMinutes)
+  const firstReminderDate = new Date(config.reminderTime);
 
-  // Jika reminder pertama sudah lewat, set ke hari ini dengan jam yang sesuai
+  // Jika reminder pertama sudah lewat, skip
   if (firstReminderDate <= now) {
-    firstReminderDate.setDate(firstReminderDate.getDate() + 1);
-    // firstReminderDate.setTime(now.getTime());
-    // firstReminderDate.setHours(hours, minutes, 0, 0);
-
-    // Jika jam hari ini sudah lewat, mulai besok
-    // if (firstReminderDate <= now) {
-    // }
+    console.warn("First reminder date is in the past");
+    return notificationIds;
   }
 
-  // Jika tidak ada repeat atau repeat = none, buat 1 notifikasi saja
-  if (!config.repeatEnabled || config.repeatOption === "none") {
+  // Jika tidak ada repeat, buat 1 notifikasi saja
+  if (!config.repeatEnabled || !config.repeatMode) {
     if (firstReminderDate <= deadline) {
       const id = await Notifications.scheduleNotificationAsync({
         content: {
@@ -128,77 +123,80 @@ const scheduleTaskReminders = async (
           sound: true,
         },
         trigger: {
-          date: firstReminderDate,
           type: "date",
+          date: firstReminderDate,
         },
       });
 
       notificationIds.push(id);
       console.log(
-        `📅 Created 1 Single notification for ${firstReminderDate.toLocaleString()}`
+        `📅 Created 1 notification for ${firstReminderDate.toLocaleString()}`
       );
     }
     return notificationIds;
   }
 
-  // Hitung interval dalam hari berdasarkan repeatOption
+  // Hitung interval dalam hari
   let intervalDays = 1;
-
-  switch (config.repeatOption) {
-    case "daily":
-      intervalDays = 1;
-      break;
-    case "weekly":
-      intervalDays = 7;
-      break;
-    case "monthly":
-      intervalDays = 30; // Approximate
-      break;
-    case "yearly":
-      intervalDays = 365;
-      break;
-    case "custom":
-      if (config.customInterval && config.customUnit) {
-        intervalDays = calculateIntervalDays(
-          config.customInterval,
-          config.customUnit
-        );
-      }
-      break;
+  if (config.repeatMode === "daily") {
+    intervalDays = config.repeatInterval || 1;
+  } else if (config.repeatMode === "weekly") {
+    intervalDays = (config.repeatInterval || 1) * 7;
   }
 
-  // Hitung berapa kali notifikasi perlu dibuat
-  const timeDiff = deadline.getTime() - firstReminderDate.getTime();
+  // Untuk weekly dengan selected days
+  if (
+    config.repeatMode === "weekly" &&
+    config.selectedDays &&
+    config.selectedDays.length > 0
+  ) {
+    return await scheduleWeeklyTaskReminders(
+      config,
+      firstReminderDate,
+      deadline,
+      now
+    );
+  }
+
+  const reminderDate2 = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    firstReminderDate.getHours(),
+    firstReminderDate.getMinutes(),
+    firstReminderDate.getSeconds(),
+    firstReminderDate.getMilliseconds()
+  );
+
+  // Untuk daily
+  const timeDiff = deadline.getTime() - reminderDate2.getTime();
   const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-  const maxNotifications = Math.floor(daysDiff / intervalDays) + 1;
-
-  console.log(`📊 Calculation:
-    - First reminder: ${firstReminderDate.toLocaleDateString()}
-    - Deadline: ${deadline.toLocaleDateString()}
-    - Days difference: ${daysDiff}
-    - Interval: ${intervalDays} days
-    - Max notifications: ${maxNotifications}
-  `);
-
-  // Batasi maksimal 100 notifikasi untuk safety
+  const maxNotifications = Math.floor(daysDiff) + 1;
   const notificationCount = Math.min(maxNotifications, 100);
 
+  const test = {
+    notificationCount,
+    deadline,
+    firstReminderDate,
+    intervalDays,
+    reminderDate2,
+    maxNotifications,
+    daysDiff,
+    timeDiff,
+  };
+  console.log("Tasks:", JSON.stringify(test, null, 2));
+
   if (notificationCount <= 0) {
-    console.warn(
-      "No notifications to create (deadline too close or already passed)"
-    );
+    console.warn("No notifications to create (deadline too close)");
     return notificationIds;
   }
 
-  // Create notifications
-  let currentDate = new Date(firstReminderDate);
+  let currentDate = new Date(reminderDate2);
   let count = 0;
 
   while (currentDate <= deadline && count < notificationCount) {
     if (currentDate > now) {
       try {
-        const date = new Date(currentDate);
-
         const id = await Notifications.scheduleNotificationAsync({
           content: {
             title: `⏰ Pengingat: ${config.title}`,
@@ -207,141 +205,453 @@ const scheduleTaskReminders = async (
             sound: true,
           },
           trigger: {
-            date,
             type: "date",
+            date: new Date(currentDate),
           },
         });
 
         notificationIds.push(id);
         count++;
-
         console.log(
-          `📅 Scheduled notification ${count}/${notificationCount} for ${date.toLocaleString()}`
+          `📅 Scheduled notification ${count}/${notificationCount} for ${currentDate.toLocaleString()}`
         );
       } catch (error) {
         console.error(`Failed to schedule notification ${count + 1}:`, error);
       }
     }
 
-    // Move to next interval
-    currentDate = new Date(currentDate);
-    currentDate.setDate(currentDate.getDate() + intervalDays);
+    currentDate.setDate(currentDate.getDate() + 1);
+    console.log("After++: ", currentDate);
   }
-
-  console.log(
-    `✅ Created ${notificationIds.length} notification(s) for TUGAS with ${config.repeatOption} repeat`
-  );
 
   return notificationIds;
 };
 
 /**
- * Schedule recurring notification untuk JADWAL & KEGIATAN
+ * Schedule weekly task reminders dengan selected days
  */
-const scheduleRecurringReminder = async (
+const scheduleWeeklyTaskReminders = async (
   config: NotificationConfig,
-  hours: number,
-  minutes: number
-): Promise<string | null> => {
-  const now = new Date();
-  const deadline = new Date(config.deadline);
+  firstReminderDate: Date,
+  deadline: Date,
+  now: Date
+): Promise<string[]> => {
+  const notificationIds: string[] = [];
+  const selectedDays = config.selectedDays || [];
+  const interval = config.repeatInterval || 1;
 
-  // Hitung tanggal reminder pertama
-  const firstReminderDate = new Date(deadline);
-  firstReminderDate.setDate(deadline.getDate() - config.reminderDaysBefore);
-  firstReminderDate.setHours(hours, minutes, 0, 0);
+  // Get time from first reminder
+  const hours = firstReminderDate.getHours();
+  const minutes = firstReminderDate.getMinutes();
+
+  let currentWeekStart = new Date();
+  currentWeekStart.setHours(0, 0, 0, 0);
+
+  // Mundurkan ke hari Minggu terdekat
+  const dayOfWeek = currentWeekStart.getDay();
+  currentWeekStart.setDate(currentWeekStart.getDate() - dayOfWeek);
+  const test = {
+    selectedDays,
+    interval,
+    firstReminderDate,
+    currentWeekStart,
+    dayOfWeek,
+  };
+  console.log("Tasks:", JSON.stringify(test, null, 2));
+  // return
+
+  let count = 0;
+  const maxNotifications = 100;
+
+  while (currentWeekStart <= deadline && count < maxNotifications) {
+    for (const day of selectedDays) {
+      const notificationDate = new Date(currentWeekStart);
+      notificationDate.setDate(currentWeekStart.getDate() + day);
+      notificationDate.setHours(hours, minutes, 0, 0);
+
+      if (notificationDate > now && notificationDate <= deadline) {
+        try {
+          const id = await Notifications.scheduleNotificationAsync({
+            content: {
+              title: `⏰ Pengingat: ${config.title}`,
+              body: config.body,
+              data: { taskId: config.taskId, category: config.category },
+              sound: true,
+            },
+            trigger: {
+              type: "date",
+              date: notificationDate,
+            },
+          });
+
+          notificationIds.push(id);
+          count++;
+          console.log(
+            `📅 Scheduled notification for ${notificationDate.toLocaleString()}`
+          );
+        } catch (error) {
+          console.error("Failed to schedule notification:", error);
+        }
+      }
+    }
+
+    // Next week(s)
+    currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+  }
+
+  return notificationIds;
+};
+
+/**
+ * Schedule notifications untuk JADWAL & KEGIATAN (with end months)
+ * Generate multiple notifications hingga X bulan
+ */
+const scheduleJadwalKegiatanReminders = async (
+  config: NotificationConfig
+): Promise<string[]> => {
+  const notificationIds: string[] = [];
+  const now = new Date();
+  const firstReminderDate = new Date(config.reminderTime);
 
   if (firstReminderDate <= now) {
-    console.warn("First reminder date is in the past");
-    // Jika endOption = never, set ke next occurrence
-    if (config.endOption === "never") {
-      // Calculate next occurrence
-      firstReminderDate.setDate(now.getDate() + 1);
-      firstReminderDate.setHours(hours, minutes, 0, 0);
-    } else {
-      return null;
-    }
+    // Set to next occurrence
+    firstReminderDate.setDate(now.getDate() + 1);
   }
+
+  // Calculate end date
+  const endDate = new Date(now);
+  if (config.repeatEndOption === "months" && config.repeatEndMonths) {
+    endDate.setMonth(now.getMonth() + config.repeatEndMonths);
+  } else {
+    // Default 6 bulan jika tidak ada
+    endDate.setMonth(now.getMonth() + 6);
+  }
+
+  if (!config.repeatEnabled || !config.repeatMode) {
+    // Single notification
+    if (firstReminderDate <= endDate) {
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `⏰ ${config.category === "jadwal" ? "Jadwal" : "Kegiatan"}: ${config.title}`,
+          body: config.body,
+          data: { taskId: config.taskId, category: config.category },
+          sound: true,
+        },
+        trigger: {
+          type: "date",
+          date: firstReminderDate,
+        },
+      });
+
+      notificationIds.push(id);
+    }
+    return notificationIds;
+  }
+
+  // Calculate interval
+  let intervalDays = 1;
+  if (config.repeatMode === "daily") {
+    intervalDays = config.repeatInterval || 1;
+  } else if (config.repeatMode === "weekly") {
+    intervalDays = (config.repeatInterval || 1) * 7;
+  } else if (config.repeatMode === "monthly") {
+    // Handled separately
+    return await scheduleMonthlyReminders(
+      config,
+      firstReminderDate,
+      endDate,
+      now
+    );
+  } else if (config.repeatMode === "yearly") {
+    // Handled separately
+    return await scheduleYearlyReminders(
+      config,
+      firstReminderDate,
+      endDate,
+      now
+    );
+  }
+
+  // For weekly with selected days
+  if (
+    config.repeatMode === "weekly" &&
+    config.selectedDays &&
+    config.selectedDays.length > 0
+  ) {
+    return await scheduleWeeklyJadwalReminders(
+      config,
+      firstReminderDate,
+      endDate,
+      now
+    );
+  }
+
+  // For daily
+  let currentDate = new Date(firstReminderDate);
+  let count = 0;
+  const maxNotifications = 100;
+
+  while (currentDate <= endDate && count < maxNotifications) {
+    if (currentDate > now) {
+      try {
+        const id = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `⏰ ${config.category === "jadwal" ? "Jadwal" : "Kegiatan"}: ${config.title}`,
+            body: config.body,
+            data: { taskId: config.taskId, category: config.category },
+            sound: true,
+          },
+          trigger: {
+            type: "date",
+            date: new Date(currentDate),
+          },
+        });
+
+        notificationIds.push(id);
+        count++;
+      } catch (error) {
+        console.error("Failed to schedule notification:", error);
+      }
+    }
+
+    currentDate.setDate(currentDate.getDate() + intervalDays);
+  }
+
+  return notificationIds;
+};
+
+/**
+ * Schedule weekly jadwal/kegiatan dengan selected days
+ */
+const scheduleWeeklyJadwalReminders = async (
+  config: NotificationConfig,
+  firstReminderDate: Date,
+  endDate: Date,
+  now: Date
+): Promise<string[]> => {
+  const notificationIds: string[] = [];
+  const selectedDays = config.selectedDays || [];
+  const interval = config.repeatInterval || 1;
+
+  const hours = firstReminderDate.getHours();
+  const minutes = firstReminderDate.getMinutes();
+
+  let currentWeekStart = new Date(firstReminderDate);
+  currentWeekStart.setHours(0, 0, 0, 0);
+  const dayOfWeek = currentWeekStart.getDay();
+  currentWeekStart.setDate(currentWeekStart.getDate() - dayOfWeek);
+
+  let count = 0;
+  const maxNotifications = 100;
+
+  while (currentWeekStart <= endDate && count < maxNotifications) {
+    for (const day of selectedDays) {
+      const notificationDate = new Date(currentWeekStart);
+      notificationDate.setDate(currentWeekStart.getDate() + day);
+      notificationDate.setHours(hours, minutes, 0, 0);
+
+      if (notificationDate > now && notificationDate <= endDate) {
+        try {
+          const id = await Notifications.scheduleNotificationAsync({
+            content: {
+              title: `⏰ ${config.category === "jadwal" ? "Jadwal" : "Kegiatan"}: ${config.title}`,
+              body: config.body,
+              data: { taskId: config.taskId, category: config.category },
+              sound: true,
+            },
+            trigger: {
+              date: notificationDate,
+              type: "date",
+            },
+          });
+
+          notificationIds.push(id);
+          count++;
+        } catch (error) {
+          console.error("Failed to schedule notification:", error);
+        }
+      }
+    }
+
+    currentWeekStart.setDate(currentWeekStart.getDate() + 7 * interval);
+  }
+
+  return notificationIds;
+};
+
+/**
+ * Schedule monthly reminders
+ */
+const scheduleMonthlyReminders = async (
+  config: NotificationConfig,
+  firstReminderDate: Date,
+  endDate: Date,
+  now: Date
+): Promise<string[]> => {
+  const notificationIds: string[] = [];
+  const dayOfMonth = firstReminderDate.getDate();
+  const hours = firstReminderDate.getHours();
+  const minutes = firstReminderDate.getMinutes();
+
+  let currentDate = new Date(firstReminderDate);
+  let count = 0;
+  const maxNotifications = 100;
+
+  while (currentDate <= endDate && count < maxNotifications) {
+    if (currentDate > now) {
+      try {
+        const id = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `⏰ ${config.category === "jadwal" ? "Jadwal" : "Kegiatan"}: ${config.title}`,
+            body: config.body,
+            data: { taskId: config.taskId, category: config.category },
+            sound: true,
+          },
+          trigger: {
+            date: new Date(currentDate),
+            type: "date",
+          },
+        });
+
+        notificationIds.push(id);
+        count++;
+      } catch (error) {
+        console.error("Failed to schedule notification:", error);
+      }
+    }
+
+    // Next month, same day
+    currentDate.setMonth(currentDate.getMonth() + 1);
+    currentDate.setDate(dayOfMonth);
+    currentDate.setHours(hours, minutes, 0, 0);
+  }
+
+  return notificationIds;
+};
+
+/**
+ * Schedule yearly reminders
+ */
+const scheduleYearlyReminders = async (
+  config: NotificationConfig,
+  firstReminderDate: Date,
+  endDate: Date,
+  now: Date
+): Promise<string[]> => {
+  const notificationIds: string[] = [];
+  const month = firstReminderDate.getMonth();
+  const day = firstReminderDate.getDate();
+  const hours = firstReminderDate.getHours();
+  const minutes = firstReminderDate.getMinutes();
+
+  let currentDate = new Date(firstReminderDate);
+  let count = 0;
+  const maxNotifications = 10; // Max 10 tahun
+
+  while (currentDate <= endDate && count < maxNotifications) {
+    if (currentDate > now) {
+      try {
+        const id = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `⏰ ${config.category === "jadwal" ? "Jadwal" : "Kegiatan"}: ${config.title}`,
+            body: config.body,
+            data: { taskId: config.taskId, category: config.category },
+            sound: true,
+          },
+          trigger: {
+            date: new Date(currentDate),
+            type: "date",
+          },
+        });
+
+        notificationIds.push(id);
+        count++;
+      } catch (error) {
+        console.error("Failed to schedule notification:", error);
+      }
+    }
+
+    // Next year
+    currentDate.setFullYear(currentDate.getFullYear() + 1);
+    currentDate.setMonth(month);
+    currentDate.setDate(day);
+    currentDate.setHours(hours, minutes, 0, 0);
+  }
+
+  return notificationIds;
+};
+
+/**
+ * Schedule recurring notification untuk JADWAL & KEGIATAN (repeat = never)
+ * Use Expo's recurring notification types
+ */
+const scheduleRecurringReminder = async (
+  config: NotificationConfig
+): Promise<string | null> => {
+  const now = new Date();
+  const firstReminderDate = new Date(config.reminderTime);
+
+  const hours = firstReminderDate.getHours();
+  const minutes = firstReminderDate.getMinutes();
 
   let trigger: any;
 
-  // Buat trigger sesuai repeatOption
-  switch (config.repeatOption) {
-    case "daily":
-      trigger = {
-        type: "daily" as const,
-        hour: hours,
-        minute: minutes,
-      };
-      break;
+  if (!config.repeatMode) {
+    trigger = firstReminderDate;
+  } else if (config.repeatMode === "daily") {
+    trigger = {
+      hour: hours,
+      minute: minutes,
+      repeats: true,
+    };
+  } else if (
+    config.repeatMode === "weekly" &&
+    config.selectedDays &&
+    config.selectedDays.length > 0
+  ) {
+    // For multiple days, create separate recurring notifications
+    const ids: string[] = [];
+    for (const day of config.selectedDays) {
+      const weekday = day === 0 ? 7 : day; // Convert Sunday from 0 to 7
 
-    case "weekly":
-      // Get weekday dari first reminder (1 = Monday, 7 = Sunday in expo)
-      const weekday = firstReminderDate.getDay();
-      const expoWeekday = weekday === 0 ? 7 : weekday; // Convert Sunday from 0 to 7
-
-      trigger = {
-        type: "weekly" as const,
-        hour: hours,
-        minute: minutes,
-        weekday: expoWeekday,
-      };
-      break;
-
-    case "monthly":
-      // Expo menggunakan CalendarNotificationTrigger untuk monthly
-      const day = firstReminderDate.getDate();
-
-      trigger = {
-        type: "monthly" as const,
-        repeats: true,
-        hour: hours,
-        minute: minutes,
-        day: day,
-      };
-      break;
-
-    case "yearly":
-      const month = firstReminderDate.getMonth(); // 1-12
-      const yearDay = firstReminderDate.getDate();
-
-      trigger = {
-        type: "yearly" as const,
-        repeats: true,
-        hour: hours,
-        minute: minutes,
-        day: yearDay,
-        month: month,
-      };
-      break;
-
-    case "custom":
-      // Untuk custom, kita gunakan calendar trigger dengan repeats
-      if (config.customUnit === "days") {
-        // Daily dengan interval
-        trigger = {
-          type: "daily" as const,
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `⏰ ${config.category === "jadwal" ? "Jadwal" : "Kegiatan"}: ${config.title}`,
+          body: config.body,
+          data: { taskId: config.taskId, category: config.category },
+          sound: true,
+        },
+        trigger: {
+          weekday,
           hour: hours,
           minute: minutes,
-        };
-        // Note: Expo tidak support interval untuk daily, jadi kita fallback ke daily
-        console.warn("Custom days interval not fully supported, using daily");
-      } else if (config.customUnit === "weeks") {
-        trigger = {
-          type: "weekly" as const,
-          hour: hours,
-          minute: minutes,
-          weekday: firstReminderDate.getDay() || 7,
-        };
-      } else {
-        // Fallback untuk months/years
-        trigger = firstReminderDate;
-      }
-      break;
+          repeats: true,
+        },
+      });
 
-    default:
-      // No repeat, just schedule once
-      trigger = firstReminderDate;
+      ids.push(id);
+    }
+    return ids.join(","); // Return comma-separated IDs
+  } else if (config.repeatMode === "monthly") {
+    const day = firstReminderDate.getDate();
+    trigger = {
+      day,
+      hour: hours,
+      minute: minutes,
+      repeats: true,
+    };
+  } else if (config.repeatMode === "yearly") {
+    const month = firstReminderDate.getMonth() + 1;
+    const day = firstReminderDate.getDate();
+    trigger = {
+      month,
+      day,
+      hour: hours,
+      minute: minutes,
+      repeats: true,
+    };
+  } else {
+    trigger = firstReminderDate;
   }
 
   const id = await Notifications.scheduleNotificationAsync({
@@ -358,26 +668,7 @@ const scheduleRecurringReminder = async (
 };
 
 /**
- * Convert custom interval to days
- */
-const calculateIntervalDays = (
-  interval: number,
-  unit: "days" | "weeks" | "months" | "years"
-): number => {
-  switch (unit) {
-    case "days":
-      return interval;
-    case "weeks":
-      return interval * 7;
-    case "months":
-      return interval * 30; // Approximate
-    case "years":
-      return interval * 365; // Approximate
-  }
-};
-
-/**
- * Cancel semua notifikasi untuk task tertentu
+ * Cancel notifications
  */
 export const cancelTaskNotifications = async (
   notificationIds: string[]
@@ -388,7 +679,15 @@ export const cancelTaskNotifications = async (
     }
 
     for (const id of notificationIds) {
-      await Notifications.cancelScheduledNotificationAsync(id);
+      // Handle comma-separated IDs (from recurring weekly)
+      if (id.includes(",")) {
+        const ids = id.split(",");
+        for (const subId of ids) {
+          await Notifications.cancelScheduledNotificationAsync(subId);
+        }
+      } else {
+        await Notifications.cancelScheduledNotificationAsync(id);
+      }
     }
 
     console.log(`✅ Cancelled ${notificationIds.length} notification(s)`);

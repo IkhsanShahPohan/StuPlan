@@ -16,22 +16,28 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { useDrizzle } from "./useDrizzle";
 
-// Interface untuk create/update task
+// Interface untuk create/update task (UPDATED)
 export interface TaskFormData {
   title: string;
   description?: string;
   notes?: string;
   category: "tugas" | "jadwal" | "kegiatan";
   deadline: Date;
+
+  // Reminder (NEW)
   reminderEnabled: boolean;
-  reminderDaysBefore: number;
-  reminderTime: Date | string; // ISO string atau Date object
+  reminderMinutes: number; // Negatif value dari deadline
+  reminderTime: Date; // Calculated reminder datetime
+
+  // Repeat (UPDATED)
   repeatEnabled?: boolean;
-  repeatOption?: "none" | "daily" | "weekly" | "monthly" | "yearly" | "custom";
-  customInterval?: number;
-  customUnit?: "days" | "weeks" | "months" | "years";
-  endOption?: "never" | "deadline";
-  subtasks?: string[]; // Array of subtask titles
+  repeatMode?: "daily" | "weekly" | "monthly" | "yearly";
+  repeatInterval?: number; // 1-6
+  selectedDays?: number[]; // Untuk weekly mode
+  repeatEndOption?: "never" | "months";
+  repeatEndMonths?: number; // 1-6 untuk jadwal
+
+  subtasks?: string[];
   status?: "pending" | "in_progress" | "completed";
 }
 
@@ -40,10 +46,11 @@ export interface TaskWithSubtasks extends Task {
 }
 
 export const useTask = (userId: string) => {
-  const [tasks, setTasks] = useState<TaskWithSubtasks[]>([]); // Ganti nama dari allTasks ke tasks
+  const [tasks, setTasks] = useState<TaskWithSubtasks[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const db = useDrizzle();
+
   /**
    * Fetch all tasks untuk user
    */
@@ -52,14 +59,12 @@ export const useTask = (userId: string) => {
       setLoading(true);
       setError(null);
 
-      // Fetch tasks
       const tasksData = await db
         .select()
         .from(tasksTable)
         .where(eq(tasksTable.userId, userId))
         .orderBy(desc(tasksTable.createdAt));
 
-      // Fetch subtasks untuk semua tasks
       const tasksWithSubtasks: TaskWithSubtasks[] = await Promise.all(
         tasksData.map(async (task) => {
           const taskSubtasks = await db
@@ -84,57 +89,24 @@ export const useTask = (userId: string) => {
   }, [userId]);
 
   /**
-   * Refresh tasks - alias untuk fetchTasks (untuk backward compatibility)
+   * Refresh tasks - alias untuk fetchTasks
    */
   const refreshTasks = useCallback(async () => {
     await fetchTasks();
   }, [fetchTasks]);
 
-  /**
-   * Fetch tasks on mount
-   */
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
 
   /**
-   * Search tasks by title or description
+   * Parse reminder time dari Date
    */
-  const searchTasks = useCallback(
-    (query: string) => {
-      if (!query.trim()) {
-        return tasks;
-      }
-
-      const lowerQuery = query.toLowerCase();
-      return tasks.filter(
-        (task) =>
-          task.title.toLowerCase().includes(lowerQuery) ||
-          task.description?.toLowerCase().includes(lowerQuery)
-      );
-    },
-    [tasks]
-  );
-
-  /**
-   * Filter tasks by category
-   */
-  const filterByCategory = useCallback(
-    (category: "tugas" | "jadwal" | "kegiatan") => {
-      return tasks.filter((task) => task.category === category);
-    },
-    [tasks]
-  );
-
-  /**
-   * Get tasks by category (alias untuk filterByCategory)
-   */
-  const getTasksByCategory = useCallback(
-    (category: "tugas" | "jadwal" | "kegiatan") => {
-      return filterByCategory(category);
-    },
-    [filterByCategory]
-  );
+  const parseReminderTime = (reminderTime: Date): string => {
+    const hours = reminderTime.getHours().toString().padStart(2, "0");
+    const minutes = reminderTime.getMinutes().toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
+  };
 
   /**
    * Get task by ID
@@ -168,24 +140,6 @@ export const useTask = (userId: string) => {
   );
 
   /**
-   * Parse reminder time dari Date atau string
-   */
-  const parseReminderTime = (reminderTime: Date | string): string => {
-    let timeDate: Date;
-
-    if (typeof reminderTime === "string") {
-      timeDate = new Date(reminderTime);
-    } else {
-      timeDate = reminderTime;
-    }
-
-    const hours = timeDate.getHours().toString().padStart(2, "0");
-    const minutes = timeDate.getMinutes().toString().padStart(2, "0");
-
-    return `${hours}:${minutes}`;
-  };
-
-  /**
    * Create new task
    */
   const createTask = async (formData: TaskFormData): Promise<Task | null> => {
@@ -193,7 +147,6 @@ export const useTask = (userId: string) => {
       setLoading(true);
       setError(null);
 
-      // Parse reminder time
       const reminderTimeString = parseReminderTime(formData.reminderTime);
 
       // Prepare task data
@@ -204,14 +157,22 @@ export const useTask = (userId: string) => {
         notes: formData.notes || null,
         category: formData.category,
         deadline: formData.deadline.toISOString(),
+
+        // Reminder
         reminderEnabled: formData.reminderEnabled,
-        reminderDaysBefore: formData.reminderDaysBefore,
+        reminderMinutes: formData.reminderMinutes,
         reminderTime: reminderTimeString,
+
+        // Repeat
         repeatEnabled: formData.repeatEnabled || false,
-        repeatOption: formData.repeatOption || "none",
-        customInterval: formData.customInterval || null,
-        customUnit: formData.customUnit || null,
-        endOption: formData.endOption || "deadline",
+        repeatMode: formData.repeatMode || null,
+        repeatInterval: formData.repeatInterval || 1,
+        selectedDays: formData.selectedDays
+          ? JSON.stringify(formData.selectedDays)
+          : null,
+        repeatEndOption: formData.repeatEndOption || "never",
+        repeatEndMonths: formData.repeatEndMonths || null,
+
         status: "in_progress",
         notificationIds: null,
         updatedAt: new Date().toISOString(),
@@ -223,7 +184,7 @@ export const useTask = (userId: string) => {
         .values(newTaskData)
         .returning();
 
-      // Create subtasks jika ada (hanya untuk category 'tugas')
+      // Create subtasks jika ada
       if (
         formData.category === "tugas" &&
         formData.subtasks &&
@@ -247,13 +208,14 @@ export const useTask = (userId: string) => {
           category: formData.category,
           deadline: formData.deadline,
           reminderEnabled: formData.reminderEnabled,
-          reminderDaysBefore: formData.reminderDaysBefore,
-          reminderTime: reminderTimeString,
+          reminderMinutes: formData.reminderMinutes,
+          reminderTime: formData.reminderTime,
           repeatEnabled: formData.repeatEnabled || false,
-          repeatOption: formData.repeatOption || "none",
-          customInterval: formData.customInterval,
-          customUnit: formData.customUnit,
-          endOption: formData.endOption,
+          repeatMode: formData.repeatMode,
+          repeatInterval: formData.repeatInterval,
+          selectedDays: formData.selectedDays,
+          repeatEndOption: formData.repeatEndOption,
+          repeatEndMonths: formData.repeatEndMonths,
         };
 
         const notificationIds =
@@ -273,7 +235,6 @@ export const useTask = (userId: string) => {
         }
       }
 
-      // Refresh tasks
       await fetchTasks();
       router.replace("/(tabs)/tasks");
       console.log("✅ Task created successfully:", insertedTask.id);
@@ -289,6 +250,8 @@ export const useTask = (userId: string) => {
 
   /**
    * Update task
+   * Strategy: Hapus semua notifikasi lama, lalu buat baru
+   * Ini memastikan tidak ada konflik dan data selalu sinkron
    */
   const updateTask = async (
     taskId: number,
@@ -298,20 +261,24 @@ export const useTask = (userId: string) => {
       setLoading(true);
       setError(null);
 
-      // Get existing task
       const existingTask = await getTaskById(taskId);
       if (!existingTask) {
         setError("Task tidak ditemukan");
         return false;
       }
 
-      // Cancel old notifications jika ada
+      // STEP 1: Hapus semua notifikasi lama
       if (existingTask.notificationIds) {
-        const oldIds = JSON.parse(existingTask.notificationIds);
-        await cancelTaskNotifications(oldIds);
+        try {
+          const oldIds = JSON.parse(existingTask.notificationIds);
+          await cancelTaskNotifications(oldIds);
+          console.log(`✅ Cancelled ${oldIds.length} old notifications`);
+        } catch (error) {
+          console.error("Error cancelling old notifications:", error);
+          // Continue anyway
+        }
       }
 
-      // Parse reminder time jika ada
       const reminderTimeString = formData.reminderTime
         ? parseReminderTime(formData.reminderTime)
         : existingTask.reminderTime;
@@ -327,30 +294,32 @@ export const useTask = (userId: string) => {
           : existingTask.deadline,
         reminderEnabled:
           formData.reminderEnabled ?? existingTask.reminderEnabled,
-        reminderDaysBefore:
-          formData.reminderDaysBefore ?? existingTask.reminderDaysBefore,
+        reminderMinutes:
+          formData.reminderMinutes ?? existingTask.reminderMinutes,
         reminderTime: reminderTimeString,
         repeatEnabled: formData.repeatEnabled ?? existingTask.repeatEnabled,
-        repeatOption: formData.repeatOption ?? existingTask.repeatOption,
-        customInterval: formData.customInterval ?? existingTask.customInterval,
-        customUnit: formData.customUnit ?? existingTask.customUnit,
-        endOption: formData.endOption ?? existingTask.endOption,
+        repeatMode: formData.repeatMode ?? existingTask.repeatMode,
+        repeatInterval: formData.repeatInterval ?? existingTask.repeatInterval,
+        selectedDays: formData.selectedDays
+          ? JSON.stringify(formData.selectedDays)
+          : existingTask.selectedDays,
+        repeatEndOption:
+          formData.repeatEndOption ?? existingTask.repeatEndOption,
+        repeatEndMonths:
+          formData.repeatEndMonths ?? existingTask.repeatEndMonths,
         status: formData.status ?? existingTask.status,
         updatedAt: new Date().toISOString(),
       };
 
-      // Update task
       await db
         .update(tasksTable)
         .set(updateData)
         .where(eq(tasksTable.id, taskId));
 
-      // Update subtasks jika ada
+      // Update subtasks
       if (formData.subtasks && formData.category === "tugas") {
-        // Delete old subtasks
         await db.delete(subtasksTable).where(eq(subtasksTable.taskId, taskId));
 
-        // Create new subtasks
         if (formData.subtasks.length > 0) {
           const subtaskData: NewSubtask[] = formData.subtasks.map((title) => ({
             taskId,
@@ -362,7 +331,7 @@ export const useTask = (userId: string) => {
         }
       }
 
-      // Schedule new notifications jika enabled
+      // Schedule new notifications
       if (updateData.reminderEnabled) {
         const notificationConfig: NotificationConfig = {
           taskId,
@@ -371,19 +340,19 @@ export const useTask = (userId: string) => {
           category: updateData.category!,
           deadline: new Date(updateData.deadline!),
           reminderEnabled: updateData.reminderEnabled,
-          reminderDaysBefore: updateData.reminderDaysBefore!,
-          reminderTime: reminderTimeString!,
+          reminderMinutes: updateData.reminderMinutes!,
+          reminderTime: formData.reminderTime || new Date(),
           repeatEnabled: updateData.repeatEnabled!,
-          repeatOption: updateData.repeatOption!,
-          customInterval: updateData.customInterval ?? undefined,
-          customUnit: updateData.customUnit ?? undefined,
-          endOption: updateData.endOption,
+          repeatMode: updateData.repeatMode,
+          repeatInterval: updateData.repeatInterval,
+          selectedDays: formData.selectedDays,
+          repeatEndOption: updateData.repeatEndOption,
+          repeatEndMonths: updateData.repeatEndMonths,
         };
 
         const notificationIds =
           await scheduleTaskNotifications(notificationConfig);
 
-        // Update notification IDs
         if (notificationIds.length > 0) {
           await db
             .update(tasksTable)
@@ -394,9 +363,7 @@ export const useTask = (userId: string) => {
         }
       }
 
-      // Refresh tasks
       await fetchTasks();
-
       console.log("✅ Task updated successfully:", taskId);
       return true;
     } catch (err) {
@@ -416,23 +383,18 @@ export const useTask = (userId: string) => {
       setLoading(true);
       setError(null);
 
-      // Get task untuk cancel notifications
       const task = await getTaskById(taskId);
       if (!task) {
         setError("Task tidak ditemukan");
         return false;
       }
 
-      // Cancel notifications
       if (task.notificationIds) {
         const notificationIds = JSON.parse(task.notificationIds);
         await cancelTaskNotifications(notificationIds);
       }
 
-      // Delete task (subtasks akan terhapus otomatis karena cascade)
       await db.delete(tasksTable).where(eq(tasksTable.id, taskId));
-
-      // Refresh tasks
       await fetchTasks();
 
       console.log("✅ Task deleted successfully:", taskId);
@@ -506,39 +468,7 @@ export const useTask = (userId: string) => {
   };
 
   /**
-   * Get upcoming tasks (deadline dalam 7 hari)
-   */
-  const getUpcomingTasks = useCallback(() => {
-    const now = new Date();
-    const sevenDaysLater = new Date(now);
-    sevenDaysLater.setDate(now.getDate() + 7);
-
-    return tasks.filter((task) => {
-      const deadline = new Date(task.deadline);
-      return deadline >= now && deadline <= sevenDaysLater;
-    });
-  }, [tasks]);
-
-  /**
-   * Get overdue tasks
-   */
-  const getOverdueTasks = useCallback(() => {
-    const now = new Date();
-    return tasks.filter((task) => {
-      const deadline = new Date(task.deadline);
-      return deadline < now && task.status !== "completed";
-    });
-  }, [tasks]);
-
-  /**
-   * Get completed tasks
-   */
-  const getCompletedTasks = useCallback(() => {
-    return tasks.filter((task) => task.status === "completed");
-  }, [tasks]);
-
-  /**
-   * Update task status (untuk konfirmasi task selesai)
+   * Update task status
    */
   const updateTaskStatus = async (
     taskId: number,
@@ -548,7 +478,6 @@ export const useTask = (userId: string) => {
       setLoading(true);
       setError(null);
 
-      // Get task untuk cancel notifications jika status = completed
       if (status === "completed") {
         const task = await getTaskById(taskId);
         if (task && task.notificationIds) {
@@ -557,7 +486,6 @@ export const useTask = (userId: string) => {
         }
       }
 
-      // Update status
       await db
         .update(tasksTable)
         .set({
@@ -566,9 +494,7 @@ export const useTask = (userId: string) => {
         })
         .where(eq(tasksTable.id, taskId));
 
-      // Refresh tasks
       await fetchTasks();
-
       console.log("✅ Task status updated:", taskId, status);
       return true;
     } catch (err) {
@@ -582,7 +508,6 @@ export const useTask = (userId: string) => {
 
   /**
    * Cancel task notifications by task ID
-   * (untuk dipanggil dari component)
    */
   const cancelTaskNotificationsByTaskId = async (
     taskId: number
@@ -598,7 +523,6 @@ export const useTask = (userId: string) => {
         const notificationIds = JSON.parse(task.notificationIds);
         await cancelTaskNotifications(notificationIds);
 
-        // Update task untuk clear notification IDs
         await db
           .update(tasksTable)
           .set({
@@ -619,30 +543,13 @@ export const useTask = (userId: string) => {
   };
 
   /**
-   * Get today's tasks
-   */
-  const getTodayTasks = useCallback(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    return tasks.filter((task) => {
-      const deadline = new Date(task.deadline);
-      deadline.setHours(0, 0, 0, 0);
-      return deadline >= today && deadline < tomorrow;
-    });
-  }, [tasks]);
-
-  /**
-   * Batch update subtasks (untuk konfirmasi sekaligus)
+   * Batch update subtasks
    */
   const batchUpdateSubtasks = async (
     taskId: number,
     subtaskIds: number[]
   ): Promise<boolean> => {
     try {
-      // Update semua subtasks yang dipilih
       await Promise.all(
         subtaskIds.map((subtaskId) =>
           db
@@ -652,14 +559,12 @@ export const useTask = (userId: string) => {
         )
       );
 
-      // Check if all subtasks completed
       const taskWithSubtasks = await getTaskById(taskId);
       if (taskWithSubtasks) {
         const allCompleted = taskWithSubtasks.subtasks.every(
           (s) => s.completed
         );
 
-        // Auto-complete task if all subtasks done
         if (allCompleted && taskWithSubtasks.status !== "completed") {
           await updateTaskStatus(taskId, "completed");
         }
@@ -673,9 +578,34 @@ export const useTask = (userId: string) => {
     }
   };
 
-  /**
-   * Filter by status
-   */
+  // Search & Filter functions
+  const searchTasks = useCallback(
+    (query: string) => {
+      if (!query.trim()) return tasks;
+      const lowerQuery = query.toLowerCase();
+      return tasks.filter(
+        (task) =>
+          task.title.toLowerCase().includes(lowerQuery) ||
+          task.description?.toLowerCase().includes(lowerQuery)
+      );
+    },
+    [tasks]
+  );
+
+  const filterByCategory = useCallback(
+    (category: "tugas" | "jadwal" | "kegiatan") => {
+      return tasks.filter((task) => task.category === category);
+    },
+    [tasks]
+  );
+
+  const getTasksByCategory = useCallback(
+    (category: "tugas" | "jadwal" | "kegiatan") => {
+      return filterByCategory(category);
+    },
+    [filterByCategory]
+  );
+
   const filterByStatus = useCallback(
     (status: "pending" | "in_progress" | "completed" | "all") => {
       if (status === "all") return tasks;
@@ -684,9 +614,6 @@ export const useTask = (userId: string) => {
     [tasks]
   );
 
-  /**
-   * Filter by date range
-   */
   const filterByDateRange = useCallback(
     (startDate: Date | null, endDate: Date | null) => {
       if (!startDate && !endDate) return tasks;
@@ -716,32 +643,42 @@ export const useTask = (userId: string) => {
     [tasks]
   );
 
-  // return {
-  //   // Data
-  //   tasks, // Export sebagai tasks (bukan allTasks)
-  //   loading,
-  //   error,
+  const getUpcomingTasks = useCallback(() => {
+    const now = new Date();
+    const sevenDaysLater = new Date(now);
+    sevenDaysLater.setDate(now.getDate() + 7);
 
-  //   // CRUD operations
-  //   createTask,
-  //   updateTask,
-  //   deleteTask,
-  //   fetchTasks,
-  //   refreshTasks, // Alias untuk fetchTasks
-  //   getTaskById,
+    return tasks.filter((task) => {
+      const deadline = new Date(task.deadline);
+      return deadline >= now && deadline <= sevenDaysLater;
+    });
+  }, [tasks]);
 
-  //   // Search & Filters
-  //   searchTasks,
-  //   filterByCategory,
-  //   getTasksByCategory,
-  //   getUpcomingTasks,
-  //   getOverdueTasks,
-  //   getCompletedTasks,
+  const getOverdueTasks = useCallback(() => {
+    const now = new Date();
+    return tasks.filter((task) => {
+      const deadline = new Date(task.deadline);
+      return deadline < now && task.status !== "completed";
+    });
+  }, [tasks]);
 
-  //   // Actions
-  //   toggleTaskStatus,
-  //   toggleSubtaskCompletion,
-  // };
+  const getCompletedTasks = useCallback(() => {
+    return tasks.filter((task) => task.status === "completed");
+  }, [tasks]);
+
+  const getTodayTasks = useCallback(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    return tasks.filter((task) => {
+      const deadline = new Date(task.deadline);
+      deadline.setHours(0, 0, 0, 0);
+      return deadline >= today && deadline < tomorrow;
+    });
+  }, [tasks]);
+
   return {
     // Data
     tasks,
@@ -751,7 +688,7 @@ export const useTask = (userId: string) => {
     // CRUD operations
     createTask,
     updateTask,
-    updateTaskStatus, // ✅ TAMBAHKAN INI
+    updateTaskStatus,
     deleteTask,
     fetchTasks,
     refreshTasks,
@@ -760,18 +697,18 @@ export const useTask = (userId: string) => {
     // Search & Filters
     searchTasks,
     filterByCategory,
-    filterByStatus, // ✅ TAMBAHKAN INI
-    filterByDateRange, // ✅ TAMBAHKAN INI
+    filterByStatus,
+    filterByDateRange,
     getTasksByCategory,
     getUpcomingTasks,
     getOverdueTasks,
-    getTodayTasks, // ✅ TAMBAHKAN INI
+    getTodayTasks,
     getCompletedTasks,
 
     // Actions
     batchUpdateSubtasks,
     toggleTaskStatus,
     toggleSubtaskCompletion,
-    cancelTaskNotifications: cancelTaskNotificationsByTaskId, // ✅ TAMBAHKAN INI (rename untuk clarity)
+    cancelTaskNotifications: cancelTaskNotificationsByTaskId,
   };
 };

@@ -59,7 +59,7 @@ const HomeScreen = () => {
 
     const startOfWeek = new Date(today);
     const day = startOfWeek.getDay(); // 0 = Minggu, 1 = Senin, ...
-    const diffToMonday = (day === 0 ? -6 : 1 - day); 
+    const diffToMonday = day === 0 ? -6 : 1 - day;
     startOfWeek.setDate(startOfWeek.getDate() + diffToMonday);
 
     // Set jam ke awal hari
@@ -71,9 +71,9 @@ const HomeScreen = () => {
     endOfWeek.setHours(0, 0, 0, 0);
 
     const completedThisWeek = tasks.filter((task) => {
-      const updatedAt = new Date(task.updatedAt || '');
+      const updatedAt = new Date(task.updatedAt || "");
       return (
-        task.status === 'completed' &&
+        task.status === "completed" &&
         updatedAt >= startOfWeek &&
         updatedAt < endOfWeek
       );
@@ -414,7 +414,7 @@ const HomeScreen = () => {
             <TouchableOpacity
               style={styles.quickActionCard}
               activeOpacity={0.7}
-              onPress={() => setAddModalVisible(true)}
+              onPress={() => router.push("/tasks/create")}
             >
               <LinearGradient
                 colors={["#8B5CF6", "#7C3AED"]}
@@ -473,24 +473,6 @@ const HomeScreen = () => {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Floating Action Button */}
-      {/* <TouchableOpacity
-        style={styles.fab}
-        activeOpacity={0.8}
-        onPress={() => handleCreateTask()}
-      >
-        <LinearGradient
-          colors={['#667eea', '#764ba2']}
-          style={styles.fabGradient}
-        >
-          <Ionicons name="add" size={28} color="#fff" />
-        </LinearGradient>
-      </TouchableOpacity> */}
-      <AddTaskModal
-        visible={addModalVisible}
-        onClose={() => setAddModalVisible(false)}
-        onCreateTask={createTask}
-      />
     </View>
   );
 };
