@@ -20,7 +20,7 @@ interface UserProfile {
   id: string;
   email: string;
   fullName: string | null;
-  birthDate: string | null;
+  birthDate: date | null;
   educationLevel: string | null;
   institution: string | null;
   createdAt: string | null;
@@ -39,6 +39,18 @@ export default function ProfileScreen() {
   useEffect(() => {
     loadProfile();
   }, []);
+
+  const formatTanggalDDMMYYYY = (dateString?: string) => {
+    if (!dateString) return "";
+
+    const date = new Date(dateString);
+
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+
+    return `${day}/${month}/${year}`;
+  };
 
   const loadProfile = async () => {
     if (!user) return;
@@ -104,8 +116,6 @@ export default function ProfileScreen() {
 
     return `${day} ${month} ${year}`;
   };
-
-
 
   const calculateAge = (birthDate: string | null) => {
     if (!birthDate) return null;
@@ -209,7 +219,7 @@ export default function ProfileScreen() {
           <ProfileItem
             icon="🎂"
             label="Tanggal Lahir"
-            value={formatDate(profile?.birthDate || null)}
+            value={profile?.birthDate}
             // badge={
             //   profile?.birthDate
             //     ? `${calculateAge(profile.birthDate)} tahun`

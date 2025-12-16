@@ -1,4 +1,4 @@
-import { StyleSheet, Platform } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
   // Container & Layout
@@ -9,6 +9,7 @@ export const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
     backgroundColor: "#F2F2F7",
+    paddingVertical: 8,
   },
   content: {
     flex: 1,
@@ -144,6 +145,7 @@ export const styles = StyleSheet.create({
   },
   input: {
     fontSize: 16,
+    flex: 1,
     color: "#000000",
     padding: 16,
     minHeight: 52,

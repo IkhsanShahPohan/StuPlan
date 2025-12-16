@@ -65,6 +65,7 @@ export const scheduleTaskNotifications = async (
   }
 
   try {
+    console.log(config.category);
     if (config.category === "tugas") {
       // TUGAS: Generate multiple notifications sampai deadline
       const ids = await scheduleTaskReminders(config);
@@ -406,7 +407,9 @@ const scheduleJadwalKegiatanReminders = async (
             date: new Date(currentDate),
           },
         });
-
+        console.log(
+          `📅 Scheduled notification ${count} for ${currentDate.toLocaleString()}`
+        );
         notificationIds.push(id);
         count++;
       } catch (error) {
@@ -590,27 +593,33 @@ const scheduleRecurringReminder = async (
 ): Promise<string | null> => {
   const now = new Date();
   const firstReminderDate = new Date(config.reminderTime);
-
+  const repeatOption = config.repeatMode;
   const hours = firstReminderDate.getHours();
   const minutes = firstReminderDate.getMinutes();
 
   let trigger: any;
+  const test = {
+    firstReminderDate,
+    repeatOption,
+  };
+  console.log("Tasks:", JSON.stringify(test, null, 2));
 
-  if (!config.repeatMode) {
+  if (!repeatOption) {
     trigger = firstReminderDate;
-  } else if (config.repeatMode === "daily") {
+  } else if (repeatOption === "daily") {
     trigger = {
       hour: hours,
       minute: minutes,
-      repeats: true,
+      type: "daily",
     };
   } else if (
-    config.repeatMode === "weekly" &&
+    repeatOption === "weekly" &&
     config.selectedDays &&
     config.selectedDays.length > 0
   ) {
     // For multiple days, create separate recurring notifications
     const ids: string[] = [];
+    let count = 0;
     for (const day of config.selectedDays) {
       const weekday = day === 0 ? 7 : day; // Convert Sunday from 0 to 7
 
@@ -625,22 +634,26 @@ const scheduleRecurringReminder = async (
           weekday,
           hour: hours,
           minute: minutes,
-          repeats: true,
+          type: "weekly",
         },
       });
 
       ids.push(id);
+      count;
+      console.log(`📅 Created ${count} notification`);
     }
     return ids.join(","); // Return comma-separated IDs
-  } else if (config.repeatMode === "monthly") {
+  } else if (repeatOption === "monthly") {
+    console.log("monthly");
+
     const day = firstReminderDate.getDate();
     trigger = {
       day,
       hour: hours,
       minute: minutes,
-      repeats: true,
+      type: "monthly",
     };
-  } else if (config.repeatMode === "yearly") {
+  } else if (repeatOption === "yearly") {
     const month = firstReminderDate.getMonth() + 1;
     const day = firstReminderDate.getDate();
     trigger = {
@@ -648,18 +661,18 @@ const scheduleRecurringReminder = async (
       day,
       hour: hours,
       minute: minutes,
-      repeats: true,
+      type: "yearly",
     };
   } else {
     trigger = firstReminderDate;
   }
 
+  console.log(`📅 Created 1 notification for ${trigger}`);
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: `⏰ ${config.category === "jadwal" ? "Jadwal" : "Kegiatan"}: ${config.title}`,
       body: config.body,
       data: { taskId: config.taskId, category: config.category },
-      sound: true,
     },
     trigger,
   });

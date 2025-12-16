@@ -220,7 +220,7 @@ const HomeScreen = () => {
               })}
             </Text>
           </View>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.notificationButton}
             onPress={() => router.push("/notifications")}
           >
@@ -232,7 +232,7 @@ const HomeScreen = () => {
                 </Text>
               </View>
             )}
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </LinearGradient>
 

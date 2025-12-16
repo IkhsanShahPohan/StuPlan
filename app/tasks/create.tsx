@@ -143,7 +143,7 @@ export default function AddTaskPage() {
           "Berhasil",
           `${getCategoryLabel(category)} berhasil ditambahkan`
         );
-        router.back();
+        router.replace("/tasks");
       } else {
         alert.error("Error", "Gagal menambahkan tugas");
       }
@@ -225,7 +225,7 @@ export default function AddTaskPage() {
             >
               <Ionicons name="close" size={28} color="#8E8E93" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Buat Baru</Text>
+            <Text style={styles.headerTitle}>Create Task</Text>
             <TouchableOpacity
               onPress={handleSubmit}
               disabled={isSubmitting}

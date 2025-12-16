@@ -1,6 +1,6 @@
 import { tasks, users } from "@/db/schema"; // schema kamu
 import { supabase } from "@/lib/supabase";
-import { and, eq, gte, lte } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import * as Notifications from "expo-notifications";
 import { useSQLiteContext } from "expo-sqlite";
@@ -9,35 +9,6 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 export default function InsertUsersScreen() {
   const sqlite = useSQLiteContext();
   const db = drizzle(sqlite);
-
-  const insertUsers = async () => {
-    try {
-      await db.insert(users).values([
-        {
-          id: "user-101",
-          email: "john@example.com",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: "user-102",
-          email: "sarah@example.com",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: "user-103",
-          email: "michael@example.com",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ]);
-
-      console.log("✅ Inserted sample users!");
-    } catch (err) {
-      console.error("❌ Insert error:", err);
-    }
-  };
 
   const loadTasks = async () => {
     try {
@@ -51,7 +22,7 @@ export default function InsertUsersScreen() {
 
   const delTask = async () => {
     try {
-      await db.delete(tasks).where(and(gte(tasks.id, 46), lte(tasks.id, 64)));
+      await db.delete(tasks);
       console.log("Success!");
     } catch (error) {
       console.log("Gagal");
@@ -70,8 +41,6 @@ export default function InsertUsersScreen() {
           updatedAt: new Date().toISOString(),
         })
         .where(eq(users.id, userId));
-
-      console.log("User fields cleared!");
     } catch (error) {
       console.error("Error clearing user fields:", error);
     }
@@ -135,6 +104,13 @@ export default function InsertUsersScreen() {
     } catch (error) {
       console.log(error);
     }
+  }
+
+  async function cancelAll() {
+    try {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      console.log("Berhasil cancel!");
+    } catch (error) {}
   }
 
   async function cancelAllNotifications() {
@@ -216,7 +192,7 @@ export default function InsertUsersScreen() {
         <TouchableOpacity
           style={styles.button}
           activeOpacity={0.7}
-          onPress={cancelAllNotifications}
+          onPress={cancelAll}
         >
           <Text style={styles.buttonText}>Cancel Notification</Text>
         </TouchableOpacity>

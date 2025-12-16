@@ -687,6 +687,7 @@ export const useTask = (userId: string) => {
 
     // CRUD operations
     createTask,
+    
     updateTask,
     updateTaskStatus,
     deleteTask,
