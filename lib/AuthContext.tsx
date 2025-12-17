@@ -1,7 +1,7 @@
 /**
  * AuthContext.tsx - UPDATED
  * Menambahkan logic auto-restore saat login pertama kali
- * 
+ *
  * New Features:
  * - Auto-restore data dari Supabase saat login di device baru
  * - Check apakah SQLite kosong (device baru)
@@ -79,11 +79,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Sync user to local SQLite
       if (session?.user) {
         await syncUserToLocal(session.user);
-        
+
         // 🆕 AUTO-RESTORE: Cek apakah perlu restore data
         if (_event === "SIGNED_IN") {
           await attemptAutoRestore(session.user.id);
-        } 
+        }
       }
     });
 
@@ -98,7 +98,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const inOnboarding = segments[0] === "onboarding";
     const inResetPassword = segments.includes("reset-password");
     const inBackup = segments[0] === "backup";
-
+    
+    checkOnboardingStatus(session?.user.id);
     if (!user && !inAuthGroup) {
       router.replace("/sign-in");
     } else if (user && needsOnboarding && !inOnboarding) {
@@ -153,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.log(
               `✅ Restored ${result.tasksRestored} tasks and ${result.subtasksRestored} subtasks`
             );
-            
+
             // Optional: Show success message
             Alert.alert(
               "Data Dipulihkan",

@@ -56,6 +56,17 @@ export default function InsertUsersScreen() {
     }
   };
 
+  const delUser = async () => {
+    try {
+      const result = await db
+        .delete(users)
+        .where(eq(users.id, "ec5dc454-9fb0-444e-8a2e-39a3e9727d17"));
+      console.log("success");
+    } catch (error) {
+      console.error("Select error:", error);
+    }
+  };
+
   const check = async () => {
     console.log("test");
     const all = await Notifications.getAllScheduledNotificationsAsync();
@@ -206,7 +217,7 @@ export default function InsertUsersScreen() {
         <TouchableOpacity
           style={styles.button}
           activeOpacity={0.7}
-          onPress={() => router.push("")}
+          onPress={delUser}
         >
           <Text style={styles.buttonText}>Hapus Task!</Text>
         </TouchableOpacity>

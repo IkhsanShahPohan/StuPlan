@@ -106,6 +106,7 @@ const scheduleTaskReminders = async (
 
   // First reminder time (calculated from reminderMinutes)
   const firstReminderDate = new Date(config.reminderTime);
+  firstReminderDate.setSeconds(0, 0);
 
   // Jika reminder pertama sudah lewat, skip
   if (firstReminderDate <= now) {
@@ -124,7 +125,7 @@ const scheduleTaskReminders = async (
           sound: true,
         },
         trigger: {
-          type: "date",
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: firstReminderDate,
         },
       });
@@ -193,6 +194,7 @@ const scheduleTaskReminders = async (
   }
 
   let currentDate = new Date(reminderDate2);
+  currentDate.setSeconds(0, 0);
   let count = 0;
 
   while (currentDate <= deadline && count < notificationCount) {
@@ -206,7 +208,7 @@ const scheduleTaskReminders = async (
             sound: true,
           },
           trigger: {
-            type: "date",
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
             date: new Date(currentDate),
           },
         });
@@ -247,6 +249,7 @@ const scheduleWeeklyTaskReminders = async (
 
   let currentWeekStart = new Date();
   currentWeekStart.setHours(0, 0, 0, 0);
+  currentWeekStart.setSeconds(0, 0);
 
   // Mundurkan ke hari Minggu terdekat
   const dayOfWeek = currentWeekStart.getDay();
@@ -269,6 +272,7 @@ const scheduleWeeklyTaskReminders = async (
       const notificationDate = new Date(currentWeekStart);
       notificationDate.setDate(currentWeekStart.getDate() + day);
       notificationDate.setHours(hours, minutes, 0, 0);
+      notificationDate.setSeconds(0, 0);
 
       if (notificationDate > now && notificationDate <= deadline) {
         try {
@@ -280,7 +284,7 @@ const scheduleWeeklyTaskReminders = async (
               sound: true,
             },
             trigger: {
-              type: "date",
+              type: Notifications.SchedulableTriggerInputTypes.DATE,
               date: notificationDate,
             },
           });
@@ -313,6 +317,7 @@ const scheduleJadwalKegiatanReminders = async (
   const notificationIds: string[] = [];
   const now = new Date();
   const firstReminderDate = new Date(config.reminderTime);
+  firstReminderDate.setSeconds(0, 0);
 
   if (firstReminderDate <= now) {
     // Set to next occurrence
@@ -339,7 +344,7 @@ const scheduleJadwalKegiatanReminders = async (
           sound: true,
         },
         trigger: {
-          type: "date",
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: firstReminderDate,
         },
       });
@@ -403,7 +408,7 @@ const scheduleJadwalKegiatanReminders = async (
             sound: true,
           },
           trigger: {
-            type: "date",
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
             date: new Date(currentDate),
           },
         });
@@ -418,6 +423,7 @@ const scheduleJadwalKegiatanReminders = async (
     }
 
     currentDate.setDate(currentDate.getDate() + intervalDays);
+    currentDate.setSeconds(0, 0);
   }
 
   return notificationIds;
@@ -441,6 +447,8 @@ const scheduleWeeklyJadwalReminders = async (
 
   let currentWeekStart = new Date(firstReminderDate);
   currentWeekStart.setHours(0, 0, 0, 0);
+  currentWeekStart.setSeconds(0, 0);
+
   const dayOfWeek = currentWeekStart.getDay();
   currentWeekStart.setDate(currentWeekStart.getDate() - dayOfWeek);
 
@@ -452,6 +460,7 @@ const scheduleWeeklyJadwalReminders = async (
       const notificationDate = new Date(currentWeekStart);
       notificationDate.setDate(currentWeekStart.getDate() + day);
       notificationDate.setHours(hours, minutes, 0, 0);
+      notificationDate.setSeconds(0, 0);
 
       if (notificationDate > now && notificationDate <= endDate) {
         try {
@@ -464,7 +473,7 @@ const scheduleWeeklyJadwalReminders = async (
             },
             trigger: {
               date: notificationDate,
-              type: "date",
+              type: Notifications.SchedulableTriggerInputTypes.DATE,
             },
           });
 
@@ -497,6 +506,8 @@ const scheduleMonthlyReminders = async (
   const minutes = firstReminderDate.getMinutes();
 
   let currentDate = new Date(firstReminderDate);
+  currentDate.setSeconds(0, 0);
+
   let count = 0;
   const maxNotifications = 100;
 
@@ -512,7 +523,7 @@ const scheduleMonthlyReminders = async (
           },
           trigger: {
             date: new Date(currentDate),
-            type: "date",
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
           },
         });
 
@@ -548,6 +559,8 @@ const scheduleYearlyReminders = async (
   const minutes = firstReminderDate.getMinutes();
 
   let currentDate = new Date(firstReminderDate);
+  currentDate.setSeconds(0, 0);
+
   let count = 0;
   const maxNotifications = 10; // Max 10 tahun
 
@@ -563,7 +576,7 @@ const scheduleYearlyReminders = async (
           },
           trigger: {
             date: new Date(currentDate),
-            type: "date",
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
           },
         });
 
@@ -593,6 +606,8 @@ const scheduleRecurringReminder = async (
 ): Promise<string | null> => {
   const now = new Date();
   const firstReminderDate = new Date(config.reminderTime);
+  firstReminderDate.setSeconds(0, 0);
+
   const repeatOption = config.repeatMode;
   const hours = firstReminderDate.getHours();
   const minutes = firstReminderDate.getMinutes();
@@ -631,10 +646,10 @@ const scheduleRecurringReminder = async (
           sound: true,
         },
         trigger: {
+          type: "weekly",
           weekday,
           hour: hours,
           minute: minutes,
-          type: "weekly",
         },
       });
 

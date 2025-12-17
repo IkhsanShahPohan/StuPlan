@@ -1,3 +1,5 @@
+import { users } from "@/db/schema";
+import { useDrizzle } from "@/hooks/useDrizzle";
 import { useTask } from "@/hooks/useTasks";
 import { useAuth } from "@/lib/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
@@ -55,7 +57,7 @@ const TaskCalendar = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
   const [pickerMonth, setPickerMonth] = useState(new Date().getMonth());
-
+  const db = useDrizzle();
   const monthNames = [
     "Januari",
     "Februari",
@@ -70,6 +72,16 @@ const TaskCalendar = () => {
     "November",
     "Desember",
   ];
+
+  const loadProfile = async () => {
+    try {
+      const result = await db.select().from(users);
+      //   setRows(result);
+      console.log("User:", JSON.stringify(result, null, 2));
+    } catch (error) {
+      console.error("Select error:", error);
+    }
+  };
 
   const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
 

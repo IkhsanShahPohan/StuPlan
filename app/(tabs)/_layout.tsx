@@ -58,14 +58,6 @@ const _Layout = () => {
         options={{ title: "Calendar", headerShown: false }}
       />
       <Tabs.Screen
-        name="learn"
-        options={{ title: "Learn", headerShown: false }}
-      />
-      <Tabs.Screen
-        name="test"
-        options={{ title: "Test", headerShown: false }}
-      />
-      <Tabs.Screen
         name="profile"
         options={{ title: "Profile", headerShown: false }}
       />
