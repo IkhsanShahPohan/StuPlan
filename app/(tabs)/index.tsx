@@ -99,6 +99,7 @@ const HomeScreen = () => {
 
     return {
       totalTasks,
+      completedThisWeek,
       completedToday,
       completedThisWeek,
       upcoming: upcomingTasks.length,

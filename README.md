@@ -25,14 +25,8 @@ Pengguna dapat menambah, mengedit, dan menghapus daftar tugas kuliah serta menda
 ### To-Do List dengan Tenggat & Notifikasi
 Fitur ini membantu pengguna mengatur aktivitas harian dengan membuat daftar kegiatan dan menambahkan tenggat waktu. Notifikasi dapat diatur sesuai keinginan pengguna, baik dari segi waktu maupun frekuensinya.
 
-### Pomodoro Timer
-Fitur ini membantu pengguna mengelola waktu belajar menggunakan metode Pomodoro dengan sesi fokus dan istirahat yang dapat disesuaikan. Aplikasi akan memberikan notifikasi otomatis saat waktu fokus atau istirahat selesai.
-
-### Kalender Akademik & Tugas
+### Kalender & Tugas
 Menampilkan seluruh jadwal tugas, ujian, dan kegiatan penting dalam tampilan kalender yang mudah dipahami. Pengguna dapat memantau tanggal penting dan merencanakan waktu mereka dengan lebih efisien.
-
-### Statistik dan Laporan
-Menampilkan grafik dan laporan bulanan untuk analisis pengeluaran dan produktivitas mahasiswa.
 
 
 ---
