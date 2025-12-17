@@ -1,561 +1,501 @@
-import { useAlert } from "@/components/useAlert";
-import { useProfile } from "@/hooks/useProfile";
+import { users } from "@/db/schema";
 import { useAuth } from "@/lib/AuthContext";
-import { Ionicons } from "@expo/vector-icons";
+import { supabase } from "@/lib/supabase";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/expo-sqlite";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useSQLiteContext } from "expo-sqlite";
+import React, { useState, useEffect } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
+  StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  Alert,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import Animated, { FadeIn } from "react-native-reanimated";
 
+// SAMA PERSIS DENGAN ONBOARDING
 const EDUCATION_LEVELS = [
-  { value: "sd", label: "SD/Sederajat" },
-  { value: "smp", label: "SMP/Sederajat" },
-  { value: "sma", label: "SMA/Sederajat" },
-  { value: "d3", label: "Diploma 3" },
-  { value: "s1", label: "Sarjana (S1)" },
-  { value: "s2", label: "Magister (S2)" },
-  { value: "s3", label: "Doktor (S3)" },
-  { value: "lainnya", label: "Lainnya" },
+  { value: "SD", label: "Sekolah Dasar (SD)" },
+  { value: "SMP", label: "Sekolah Menengah Pertama (SMP)" },
+  { value: "SMA/SMK", label: "Sekolah Menengah Atas (SMA/SMK)" },
+  { value: "D3", label: "Diploma 3 (D3)" },
+  { value: "S1/D4", label: "Sarjana/Diploma 4 (S1/D4)" },
 ];
 
+interface FormData {
+  fullName: string;
+  birthDate: string;
+  educationLevel: string;
+  institution: string;
+}
+
 export default function EditProfileScreen() {
-  const { user } = useAuth();
   const router = useRouter();
-  const alert = useAlert();
-  const { profile, loading, updating, updateProfile, profileCompletion } =
-    useProfile(user?.id || "");
+  const { user } = useAuth();
+  const sqlite = useSQLiteContext();
+  const db = drizzle(sqlite);
 
-  const [fullName, setFullName] = useState(profile?.fullName || "");
-  const [birthDate, setBirthDate] = useState(
-    profile?.birthDate ? new Date(profile.birthDate) : new Date()
-  );
+  const [loading, setLoading] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [educationLevel, setEducationLevel] = useState(
-    profile?.educationLevel || ""
-  );
-  const [institution, setInstitution] = useState(profile?.institution || "");
-  const [showEducationPicker, setShowEducationPicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [hasChanges, setHasChanges] = useState(false);
 
-  // Update form when profile loads
-  React.useEffect(() => {
-    if (profile) {
-      setFullName(profile.fullName || "");
-      setBirthDate(
-        profile.birthDate ? new Date(profile.birthDate) : new Date()
-      );
-      setEducationLevel(profile.educationLevel || "");
-      setInstitution(profile.institution || "");
-    }
-  }, [profile]);
+  const [formData, setFormData] = useState<FormData>({
+    fullName: "",
+    birthDate: "",
+    educationLevel: "",
+    institution: "",
+  });
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      setBirthDate(selectedDate);
+  const [originalData, setOriginalData] = useState<FormData>({
+    fullName: "",
+    birthDate: "",
+    educationLevel: "",
+    institution: "",
+  });
+
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  useEffect(() => {
+    // Deteksi perubahan
+    const changed =
+      formData.fullName !== originalData.fullName ||
+      formData.birthDate !== originalData.birthDate ||
+      formData.educationLevel !== originalData.educationLevel ||
+      formData.institution !== originalData.institution;
+    setHasChanges(changed);
+  }, [formData, originalData]);
+
+  const loadUserData = async () => {
+    if (!user) return;
+
+    try {
+      setIsLoadingData(true);
+
+      // Load dari SQLite
+      const userData = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1);
+
+      if (userData && userData.length > 0) {
+        const data = {
+          fullName: userData[0].fullName || "",
+          birthDate: userData[0].birthDate || "",
+          educationLevel: userData[0].educationLevel || "",
+          institution: userData[0].institution || "",
+        };
+
+        setFormData(data);
+        setOriginalData(data);
+
+        // Parse tanggal jika ada (format: DD/MM/YYYY)
+        if (data.birthDate) {
+          const [day, month, year] = data.birthDate.split("/").map(Number);
+          if (day && month && year) {
+            setSelectedDate(new Date(year, month - 1, day));
+          }
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error loading user data:", error);
+      Alert.alert("Error", "Gagal memuat data profil");
+    } finally {
+      setIsLoadingData(false);
     }
   };
 
-  const handleSave = async () => {
-    // Validation
-    if (!fullName.trim()) {
-      alert.warning("Data Tidak Lengkap", "Nama lengkap harus diisi.");
-      return;
+  const updateFormData = (key: keyof FormData, value: string) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleDateChange = (event: any, date?: Date) => {
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
     }
 
-    if (!educationLevel) {
-      alert.warning("Data Tidak Lengkap", "Jenjang pendidikan harus dipilih.");
-      return;
-    }
-
-    if (!institution.trim()) {
-      alert.warning("Data Tidak Lengkap", "Nama institusi harus diisi.");
-      return;
-    }
-
-    // Calculate age
-    const age = new Date().getFullYear() - birthDate.getFullYear();
-    if (age < 5 || age > 100) {
-      alert.warning(
-        "Tanggal Lahir Tidak Valid",
-        "Periksa kembali tanggal lahir Anda."
-      );
-      return;
-    }
-
-    const success = await updateProfile({
-      fullName: fullName.trim(),
-      birthDate: birthDate.toISOString(),
-      educationLevel,
-      institution: institution.trim(),
-    });
-
-    if (success) {
-      alert.success("Profil Diperbarui", "Perubahan telah berhasil disimpan.");
-      setTimeout(() => {
-        router.back();
-      }, 1500);
-    } else {
-      alert.error(
-        "Gagal Menyimpan",
-        "Terjadi kesalahan saat menyimpan profil. Silakan coba lagi."
-      );
+    if (date) {
+      setSelectedDate(date);
+      // Format SAMA dengan onboarding: DD/MM/YYYY
+      const formatted = `${String(date.getDate()).padStart(2, "0")}/${String(
+        date.getMonth() + 1
+      ).padStart(2, "0")}/${date.getFullYear()}`;
+      updateFormData("birthDate", formatted);
     }
   };
 
-  const getEducationLabel = (value: string) => {
-    return EDUCATION_LEVELS.find((e) => e.value === value)?.label || value;
-  };
-
-  if (loading) {
+  const isFormValid = () => {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Memuat profil...</Text>
+      formData.fullName.trim().length > 2 &&
+      formData.birthDate.trim().length > 0 &&
+      formData.educationLevel.trim().length > 0 &&
+      formData.institution.trim().length > 0
+    );
+  };
+
+  const handleSubmit = async () => {
+    if (!user) {
+      Alert.alert("Error", "Sesi berakhir. Silakan login kembali.");
+      return;
+    }
+
+    if (!isFormValid()) {
+      Alert.alert("Error", "Mohon lengkapi semua data dengan benar");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 1. Update Supabase - SAMA PERSIS dengan onboarding
+      const { error: supabaseError } = await supabase.from("profiles").upsert({
+        id: user.id,
+        full_name: formData.fullName,
+        birth_date: formData.birthDate,
+        education_level: formData.educationLevel,
+        institution: formData.institution,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (supabaseError) {
+        console.error("❌ Supabase error:", supabaseError);
+        throw supabaseError;
+      }
+
+      // 2. Update SQLite - SAMA PERSIS dengan onboarding
+      await db
+        .update(users)
+        .set({
+          fullName: formData.fullName,
+          birthDate: formData.birthDate,
+          educationLevel: formData.educationLevel,
+          institution: formData.institution,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(users.id, user.id));
+
+      console.log("✅ Profile updated successfully");
+
+      Alert.alert("Berhasil", "Profil berhasil diperbarui", [
+        {
+          text: "OK",
+          onPress: () => router.back(),
+        },
+      ]);
+    } catch (error) {
+      console.error("❌ Error updating profile:", error);
+      Alert.alert("Error", "Gagal memperbarui profil. Silakan coba lagi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (hasChanges) {
+      Alert.alert(
+        "Batalkan Perubahan?",
+        "Perubahan yang belum disimpan akan hilang",
+        [
+          { text: "Lanjut Edit", style: "cancel" },
+          {
+            text: "Batalkan",
+            style: "destructive",
+            onPress: () => router.back(),
+          },
+        ]
+      );
+    } else {
+      router.back();
+    }
+  };
+
+  if (isLoadingData) {
+    return (
+      <View className="flex-1 bg-white items-center justify-center">
+        <ActivityIndicator size="large" color="#000" />
+        <Text className="mt-4 text-base text-gray-600 font-medium">
+          Memuat data profil...
+        </Text>
       </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="arrow-back" size={24} color="#1C1C1E" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Edit Profil</Text>
-          <Text style={styles.headerSubtitle}>
-            Ubah informasi profil anda!
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.saveButton, updating && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={updating}
-        >
-          {updating ? (
-            <Text style={styles.saveButtonText}>Menyimpan...</Text>
-          ) : (
-            <>
-              <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-              <Text style={styles.saveButtonText}>Simpan</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Profile Completion Bar */}
-      {/* <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill]} />
-        </View>
-        <Text style={styles.progressText}>
-          {profileCompletion === 100
-            ? "Profil Lengkap! ✨"
-            : `${4 - Math.ceil(profileCompletion / 25)} field lagi`}
-        </Text>
-      </View> */}
-
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.contentContainer}
+    <>
+      <StatusBar barStyle="dark-content" backgroundColor="white" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        className="flex-1 bg-white"
+        keyboardVerticalOffset={0}
       >
-        {/* Email (Read-only) */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Informasi Akun</Text>
-
-          <View style={styles.fieldContainer}>
-            <View style={styles.fieldHeader}>
-              <Ionicons name="mail" size={20} color="#007AFF" />
-              <Text style={styles.fieldLabel}>Email</Text>
+        {/* Header */}
+        <View className="px-6 pt-16 pb-5 bg-white border-b border-gray-100">
+          <View className="flex-row items-center justify-between">
+            <TouchableOpacity
+              onPress={handleCancel}
+              disabled={loading}
+              className="p-2 -ml-2"
+              activeOpacity={0.6}
+            >
+              <Ionicons name="arrow-back" size={28} color="#000" />
+            </TouchableOpacity>
+            
+            <View className="flex-1 mx-4">
+              <Text className="text-2xl font-bold text-gray-900">
+                Edit Profil
+              </Text>
+              <Text className="text-sm text-gray-500 mt-0.5">
+                Perbarui informasi Anda
+              </Text>
             </View>
-            <View style={[styles.input, styles.inputReadonly]}>
-              <Text style={styles.inputTextReadonly}>{profile?.email}</Text>
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={16} color="#34C759" />
-                <Text style={styles.verifiedText}>Terverifikasi</Text>
+
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={!isFormValid() || loading || !hasChanges}
+              className={`px-5 py-2.5 rounded-xl ${
+                isFormValid() && hasChanges && !loading
+                  ? "bg-black"
+                  : "bg-gray-200"
+              }`}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Text
+                  className={`text-sm font-semibold ${
+                    isFormValid() && hasChanges ? "text-white" : "text-gray-400"
+                  }`}
+                >
+                  Simpan
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          className="flex-1"
+        >
+          <View className="px-6 py-6">
+            {/* Email - Read Only */}
+            <Animated.View entering={FadeIn.delay(100)} className="mb-8">
+              <Text className="text-xs font-bold text-gray-400 tracking-widest mb-3">
+                EMAIL AKUN
+              </Text>
+              <View className="bg-gray-50 rounded-2xl px-5 py-4 border-2 border-gray-100 flex-row items-center justify-between">
+                <View className="flex-row items-center flex-1">
+                  <Ionicons
+                    name="mail"
+                    size={20}
+                    color="#6B7280"
+                    style={{ marginRight: 12 }}
+                  />
+                  <Text className="text-base font-medium text-gray-600 flex-1">
+                    {user?.email}
+                  </Text>
+                </View>
+                <View className="bg-green-100 px-3 py-1.5 rounded-lg flex-row items-center">
+                  <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                  <Text className="text-xs font-semibold text-green-700 ml-1">
+                    Terverifikasi
+                  </Text>
+                </View>
               </View>
-            </View>
-          </View>
-        </View>
+            </Animated.View>
 
-        {/* Personal Info */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Informasi Pribadi</Text>
-
-          {/* Full Name */}
-          <View style={styles.fieldContainer}>
-            <View style={styles.fieldHeader}>
-              <Ionicons name="person" size={20} color="#FF9500" />
-              <Text style={styles.fieldLabel}>Nama Lengkap *</Text>
-            </View>
-            <TextInput
-              style={styles.input}
-              value={fullName}
-              onChangeText={setFullName}
-              placeholder="Masukkan nama lengkap"
-              placeholderTextColor="#8E8E93"
-            />
-          </View>
-
-          {/* Birth Date */}
-          <View style={styles.fieldContainer}>
-            <View style={styles.fieldHeader}>
-              <Ionicons name="calendar" size={20} color="#FF3B30" />
-              <Text style={styles.fieldLabel}>Tanggal Lahir *</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.input}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text style={styles.inputText}>
-                {birthDate.toLocaleDateString("id-ID", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
+            {/* Nama Lengkap */}
+            <Animated.View entering={FadeIn.delay(200)} className="mb-8">
+              <Text className="text-xs font-bold text-gray-400 tracking-widest mb-3">
+                NAMA LENGKAP
               </Text>
-              <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-            </TouchableOpacity>
-          </View>
+              <View className="bg-white rounded-2xl px-5 py-4 border-2 border-gray-200">
+                <TextInput
+                  value={formData.fullName}
+                  onChangeText={(text) => updateFormData("fullName", text)}
+                  placeholder="Masukkan nama lengkap"
+                  className="text-lg font-medium text-gray-900"
+                  placeholderTextColor="#9CA3AF"
+                  autoCapitalize="words"
+                  autoComplete="name"
+                />
+              </View>
+              {formData.fullName.length > 0 &&
+                formData.fullName.length < 3 && (
+                  <Text className="text-red-500 text-xs mt-2 ml-1">
+                    Nama minimal 3 karakter
+                  </Text>
+                )}
+            </Animated.View>
 
-          {showDatePicker && (
-            <DateTimePicker
-              value={birthDate}
-              mode="date"
-              onChange={handleDateChange}
-              maximumDate={new Date()}
-              minimumDate={new Date(1920, 0, 1)}
-            />
-          )}
-        </View>
-
-        {/* Education */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Informasi Pendidikan</Text>
-
-          {/* Education Level */}
-          <View style={styles.fieldContainer}>
-            <View style={styles.fieldHeader}>
-              <Ionicons name="school" size={20} color="#5856D6" />
-              <Text style={styles.fieldLabel}>Jenjang Pendidikan *</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.input}
-              onPress={() => setShowEducationPicker(!showEducationPicker)}
-            >
-              <Text
-                style={[
-                  styles.inputText,
-                  !educationLevel && styles.placeholderText,
-                ]}
+            {/* Tanggal Lahir */}
+            <Animated.View entering={FadeIn.delay(300)} className="mb-8">
+              <Text className="text-xs font-bold text-gray-400 tracking-widest mb-3">
+                TANGGAL LAHIR
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(true)}
+                className="bg-white rounded-2xl px-5 py-4 border-2 border-gray-200"
+                activeOpacity={0.7}
               >
-                {educationLevel
-                  ? getEducationLabel(educationLevel)
-                  : "Pilih jenjang pendidikan"}
-              </Text>
-              <Ionicons
-                name={showEducationPicker ? "chevron-up" : "chevron-down"}
-                size={20}
-                color="#C7C7CC"
-              />
-            </TouchableOpacity>
+                <View className="flex-row items-center justify-between">
+                  <Text
+                    className={`text-lg font-medium ${
+                      formData.birthDate ? "text-gray-900" : "text-gray-400"
+                    }`}
+                  >
+                    {formData.birthDate || "Pilih tanggal lahir"}
+                  </Text>
+                  <Ionicons name="calendar-outline" size={20} color="#9CA3AF" />
+                </View>
+              </TouchableOpacity>
 
-            {showEducationPicker && (
-              <View style={styles.pickerContainer}>
+              {showDatePicker && (
+                <View className="mt-4 bg-white rounded-2xl p-4 border border-gray-200">
+                  <DateTimePicker
+                    value={selectedDate}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
+                    onChange={handleDateChange}
+                    maximumDate={new Date()}
+                    minimumDate={new Date(1950, 0, 1)}
+                  />
+
+                  {Platform.OS === "ios" && (
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      className="mt-4 bg-black py-3 rounded-xl"
+                      activeOpacity={0.8}
+                    >
+                      <Text className="text-white text-center font-semibold">
+                        Konfirmasi
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </Animated.View>
+
+            {/* Jenjang Pendidikan */}
+            <Animated.View entering={FadeIn.delay(400)} className="mb-8">
+              <Text className="text-xs font-bold text-gray-400 tracking-widest mb-3">
+                JENJANG PENDIDIKAN
+              </Text>
+              <View className="gap-3">
                 {EDUCATION_LEVELS.map((level) => (
                   <TouchableOpacity
                     key={level.value}
-                    style={[
-                      styles.pickerItem,
-                      educationLevel === level.value &&
-                        styles.pickerItemSelected,
-                    ]}
-                    onPress={() => {
-                      setEducationLevel(level.value);
-                      setShowEducationPicker(false);
-                    }}
+                    onPress={() =>
+                      updateFormData("educationLevel", level.value)
+                    }
+                    className={`p-5 rounded-2xl border-2 ${
+                      formData.educationLevel === level.value
+                        ? "border-black bg-gray-50"
+                        : "border-gray-200 bg-white"
+                    }`}
+                    activeOpacity={0.7}
                   >
-                    <Text
-                      style={[
-                        styles.pickerItemText,
-                        educationLevel === level.value &&
-                          styles.pickerItemTextSelected,
-                      ]}
-                    >
-                      {level.label}
-                    </Text>
-                    {educationLevel === level.value && (
-                      <Ionicons name="checkmark" size={20} color="#007AFF" />
-                    )}
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-1">
+                        <Text
+                          className={`text-lg mb-1 ${
+                            formData.educationLevel === level.value
+                              ? "font-semibold text-gray-900"
+                              : "font-medium text-gray-700"
+                          }`}
+                        >
+                          {level.value}
+                        </Text>
+                        <Text className="text-sm text-gray-500">
+                          {level.label}
+                        </Text>
+                      </View>
+                      {formData.educationLevel === level.value && (
+                        <View className="w-6 h-6 rounded-full bg-black items-center justify-center ml-3">
+                          <Text className="text-white text-xs font-bold">✓</Text>
+                        </View>
+                      )}
+                    </View>
                   </TouchableOpacity>
                 ))}
               </View>
+            </Animated.View>
+
+            {/* Instansi */}
+            <Animated.View entering={FadeIn.delay(500)} className="mb-8">
+              <Text className="text-xs font-bold text-gray-400 tracking-widest mb-3">
+                INSTANSI / ORGANISASI
+              </Text>
+              <View className="bg-white rounded-2xl px-5 py-4 border-2 border-gray-200">
+                <TextInput
+                  value={formData.institution}
+                  onChangeText={(text) => updateFormData("institution", text)}
+                  placeholder="Nama sekolah, universitas, atau tempat kerja"
+                  className="text-lg font-medium text-gray-900"
+                  placeholderTextColor="#9CA3AF"
+                  autoCapitalize="words"
+                />
+              </View>
+            </Animated.View>
+
+            {/* Info Box - Muncul saat ada perubahan */}
+            {hasChanges && (
+              <Animated.View
+                entering={FadeIn}
+                className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 flex-row items-start mb-6"
+              >
+                <Ionicons
+                  name="information-circle"
+                  size={22}
+                  color="#3B82F6"
+                  style={{ marginTop: 2, marginRight: 10 }}
+                />
+                <Text className="text-sm text-blue-700 flex-1 leading-5">
+                  Anda memiliki perubahan yang belum disimpan. Tekan tombol{" "}
+                  <Text className="font-bold">Simpan</Text> di atas untuk
+                  menyimpan perubahan.
+                </Text>
+              </Animated.View>
             )}
-          </View>
 
-          {/* Institution */}
-          <View style={styles.fieldContainer}>
-            <View style={styles.fieldHeader}>
-              <Ionicons name="business" size={20} color="#34C759" />
-              <Text style={styles.fieldLabel}>Nama Institusi *</Text>
+            {/* Helper Text */}
+            <View className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+              <View className="flex-row items-start">
+                <Ionicons
+                  name="shield-checkmark"
+                  size={20}
+                  color="#10B981"
+                  style={{ marginTop: 2, marginRight: 10 }}
+                />
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-gray-900 mb-1">
+                    Data Anda Aman
+                  </Text>
+                  <Text className="text-xs text-gray-600 leading-5">
+                    Informasi profil Anda tersimpan dengan aman dan hanya
+                    digunakan untuk meningkatkan pengalaman belajar Anda.
+                  </Text>
+                </View>
+              </View>
             </View>
-            <TextInput
-              style={styles.input}
-              value={institution}
-              onChangeText={setInstitution}
-              placeholder="Contoh: Universitas Indonesia"
-              placeholderTextColor="#8E8E93"
-            />
           </View>
-        </View>
-
-        {/* Info Card */}
-        {/* <View style={styles.infoCard}>
-          <Ionicons name="information-circle" size={24} color="#007AFF" />
-          <View style={styles.infoTextContainer}>
-            <Text style={styles.infoTitle}>Kenapa data ini penting?</Text>
-            <Text style={styles.infoText}>
-              Data profil membantu kami memberikan pengalaman yang lebih
-              personal dan rekomendasi yang sesuai dengan kebutuhan Anda.
-            </Text>
-          </View>
-        </View> */}
-
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F9F9F9",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F9F9F9",
-  },
-  loadingText: {
-    fontSize: 16,
-    color: "#8E8E93",
-    fontWeight: "500",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F2F2F7",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  backButton: {
-    marginRight: 12,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1C1C1E",
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "#8E8E93",
-    marginTop: 2,
-    fontWeight: "500",
-  },
-  saveButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    backgroundColor: "#007AFF",
-  },
-  saveButtonDisabled: {
-    opacity: 0.5,
-  },
-  saveButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  progressContainer: {
-    padding: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F2F2F7",
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: "#F2F2F7",
-    borderRadius: 4,
-    overflow: "hidden",
-    marginBottom: 8,
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#34C759",
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 13,
-    color: "#8E8E93",
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    padding: 16,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1C1C1E",
-    marginBottom: 16,
-    paddingHorizontal: 4,
-  },
-  fieldContainer: {
-    marginBottom: 16,
-  },
-  fieldHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
-    paddingHorizontal: 4,
-  },
-  fieldLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1C1C1E",
-  },
-  input: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E5EA",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: "#1C1C1E",
-  },
-  inputReadonly: {
-    backgroundColor: "#F2F2F7",
-  },
-  inputText: {
-    fontSize: 16,
-    color: "#1C1C1E",
-    flex: 1,
-  },
-  inputTextReadonly: {
-    fontSize: 16,
-    color: "#8E8E93",
-    flex: 1,
-  },
-  placeholderText: {
-    color: "#8E8E93",
-  },
-  verifiedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: "#E8F8EC",
-    borderRadius: 6,
-  },
-  verifiedText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#34C759",
-  },
-  pickerContainer: {
-    marginTop: 8,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E5E5EA",
-    overflow: "hidden",
-  },
-  pickerItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F2F2F7",
-  },
-  pickerItemSelected: {
-    backgroundColor: "#E8F4FF",
-  },
-  pickerItemText: {
-    fontSize: 16,
-    color: "#1C1C1E",
-  },
-  pickerItemTextSelected: {
-    fontWeight: "600",
-    color: "#007AFF",
-  },
-  infoCard: {
-    flexDirection: "row",
-    padding: 16,
-    backgroundColor: "#E8F4FF",
-    borderRadius: 12,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: "#D0E9FF",
-  },
-  infoTextContainer: {
-    flex: 1,
-  },
-  infoTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#007AFF",
-    marginBottom: 4,
-  },
-  infoText: {
-    fontSize: 14,
-    color: "#64748B",
-    lineHeight: 20,
-  },
-  bottomSpacer: {
-    height: 40,
-  },
-});

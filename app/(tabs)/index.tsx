@@ -1,4 +1,3 @@
-import AddTaskModal from "@/components/tasks/AddTaskModal";
 import { useTask } from "@/hooks/useTasks";
 import { useAuth } from "@/lib/AuthContext";
 import { styles } from "@/styles/homeStyles";
@@ -152,12 +151,12 @@ const HomeScreen = () => {
     const diff = new Date(deadline).getTime() - Date.now();
     const hours = Math.floor(diff / (1000 * 60 * 60));
 
-    if (diff < 0) return "Overdue";
-    if (hours < 1) return "Less than 1h";
-    if (hours < 24) return `${hours}h remaining`;
+    if (diff < 0) return "Terlambat";
+    if (hours < 1) return "Kurang dari 1 jam";
+    if (hours < 24) return `${hours} jam lagi`;
 
     const days = Math.floor(hours / 24);
-    return `${days}d remaining`;
+    return `${days} hari lagi`;
   };
 
   // Pull to refresh
@@ -194,7 +193,7 @@ const HomeScreen = () => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#667eea" />
-        <Text style={styles.loadingText}>Loading your tasks...</Text>
+        <Text style={styles.loadingText}>Memuat tugas Anda...</Text>
       </View>
     );
   }
@@ -213,26 +212,13 @@ const HomeScreen = () => {
             <Text style={styles.greeting}>{greeting} 👋</Text>
             <Text style={styles.userName}>{displayName}</Text>
             <Text style={styles.dateTime}>
-              {currentTime.toLocaleDateString("en-US", {
+              {currentTime.toLocaleDateString("id-ID", {
                 weekday: "long",
-                month: "long",
                 day: "numeric",
+                month: "long",
               })}
             </Text>
           </View>
-          {/* <TouchableOpacity
-            style={styles.notificationButton}
-            onPress={() => router.push("/notifications")}
-          >
-            <Ionicons name="notifications" size={24} color="#fff" />
-            {stats.overdue > 0 && (
-              <View style={styles.notificationBadge}>
-                <Text style={styles.notificationBadgeText}>
-                  {stats.overdue}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity> */}
         </View>
       </LinearGradient>
 
@@ -249,8 +235,59 @@ const HomeScreen = () => {
           />
         }
       >
+        {/* Quick Actions - Dipindah ke atas */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Aksi Cepat</Text>
+
+          <View style={styles.quickActionsGrid}>
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              activeOpacity={0.7}
+              onPress={() => router.push("/tasks/create")}
+            >
+              <LinearGradient
+                colors={["#8B5CF6", "#7C3AED"]}
+                style={styles.quickActionGradient}
+              >
+                <Ionicons name="add" size={24} color="#fff" />
+                <Text style={styles.quickActionText}>Tugas Baru</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              activeOpacity={0.7}
+              onPress={() => router.push("/(tabs)/calendar")}
+            >
+              <LinearGradient
+                colors={["#3B82F6", "#2563EB"]}
+                style={styles.quickActionGradient}
+              >
+                <Ionicons name="calendar" size={24} color="#fff" />
+                <Text style={styles.quickActionText}>Jadwal</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              activeOpacity={0.7}
+              onPress={handleViewAllTasks}
+            >
+              <LinearGradient
+                colors={["#F59E0B", "#D97706"]}
+                style={styles.quickActionGradient}
+              >
+                <Ionicons name="flag" size={24} color="#fff" />
+                <Text style={styles.quickActionText}>Semua Tugas</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Quick Stats */}
         <View style={styles.statsContainer}>
+          <Text style={styles.sectionTitle}>Statistik Tugas</Text>
+
           <View style={styles.statsGrid}>
             <TouchableOpacity
               style={[styles.statCard, styles.statCardPrimary]}
@@ -260,7 +297,7 @@ const HomeScreen = () => {
                 <Ionicons name="checkmark-circle" size={24} color="#10B981" />
               </View>
               <Text style={styles.statValue}>{stats.completedToday}</Text>
-              <Text style={styles.statLabel}>Completed Today</Text>
+              <Text style={styles.statLabel}>Selesai Hari Ini</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -272,7 +309,7 @@ const HomeScreen = () => {
                 <Ionicons name="time" size={24} color="#3B82F6" />
               </View>
               <Text style={styles.statValue}>{stats.upcoming}</Text>
-              <Text style={styles.statLabel}>Upcoming</Text>
+              <Text style={styles.statLabel}>Mendatang</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -283,7 +320,7 @@ const HomeScreen = () => {
                 <Ionicons name="flash" size={24} color="#F59E0B" />
               </View>
               <Text style={styles.statValue}>{stats.overdue}</Text>
-              <Text style={styles.statLabel}>Overdue</Text>
+              <Text style={styles.statLabel}>Terlambat</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -294,7 +331,7 @@ const HomeScreen = () => {
                 <Ionicons name="trending-up" size={24} color="#8B5CF6" />
               </View>
               <Text style={styles.statValue}>{stats.completionRate}%</Text>
-              <Text style={styles.statLabel}>Completion</Text>
+              <Text style={styles.statLabel}>Penyelesaian</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -302,16 +339,13 @@ const HomeScreen = () => {
         {/* Progress Overview */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Today's Progress</Text>
-            <TouchableOpacity onPress={handleViewAllTasks}>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
+            <Text style={styles.sectionTitle}>Progress Minggu Ini</Text>
           </View>
 
           <View style={styles.progressCard}>
             <View style={styles.progressHeader}>
               <Ionicons name="bar-chart" size={24} color="#667eea" />
-              <Text style={styles.progressTitle}>Weekly Goal</Text>
+              <Text style={styles.progressTitle}>Target Mingguan</Text>
             </View>
 
             <View style={styles.progressBarContainer}>
@@ -327,7 +361,7 @@ const HomeScreen = () => {
 
             <View style={styles.progressStats}>
               <Text style={styles.progressText}>
-                {stats.completedThisWeek} of {stats.totalTasks} tasks completed
+                {stats.completedThisWeek} dari {stats.totalTasks} tugas selesai
               </Text>
               <Text style={styles.progressPercentage}>
                 {stats.completionRate}%
@@ -339,7 +373,7 @@ const HomeScreen = () => {
         {/* Upcoming Tasks */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Upcoming Tasks</Text>
+            <Text style={styles.sectionTitle}>Tugas Mendatang</Text>
             <TouchableOpacity onPress={handleViewAllTasks}>
               <Ionicons name="chevron-forward" size={24} color="#667eea" />
             </TouchableOpacity>
@@ -348,9 +382,11 @@ const HomeScreen = () => {
           {upcomingTasksList.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="flag-outline" size={48} color="#CBD5E1" />
-              <Text style={styles.emptyStateText}>No upcoming tasks</Text>
+              <Text style={styles.emptyStateText}>
+                Tidak ada tugas mendatang
+              </Text>
               <Text style={styles.emptyStateSubtext}>
-                Create a new task to get started
+                Buat tugas baru untuk memulai
               </Text>
             </View>
           ) : (
@@ -406,73 +442,9 @@ const HomeScreen = () => {
           )}
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-
-          <View style={styles.quickActionsGrid}>
-            <TouchableOpacity
-              style={styles.quickActionCard}
-              activeOpacity={0.7}
-              onPress={() => router.push("/tasks/create")}
-            >
-              <LinearGradient
-                colors={["#8B5CF6", "#7C3AED"]}
-                style={styles.quickActionGradient}
-              >
-                <Ionicons name="add" size={24} color="#fff" />
-                <Text style={styles.quickActionText}>New Task</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickActionCard}
-              activeOpacity={0.7}
-              onPress={() => router.push("/(tabs)/calendar")}
-            >
-              <LinearGradient
-                colors={["#3B82F6", "#2563EB"]}
-                style={styles.quickActionGradient}
-              >
-                <Ionicons name="calendar" size={24} color="#fff" />
-                <Text style={styles.quickActionText}>Schedule</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* <TouchableOpacity
-              style={styles.quickActionCard}
-              activeOpacity={0.7}
-              onPress={() => handleCreateTask("kegiatan")}
-            >
-              <LinearGradient
-                colors={["#10B981", "#059669"]}
-                style={styles.quickActionGradient}
-              >
-                <Ionicons name="pulse" size={24} color="#fff" />
-                <Text style={styles.quickActionText}>Activity</Text>
-              </LinearGradient>
-            </TouchableOpacity> */}
-
-            <TouchableOpacity
-              style={styles.quickActionCard}
-              activeOpacity={0.7}
-              onPress={handleViewAllTasks}
-            >
-              <LinearGradient
-                colors={["#F59E0B", "#D97706"]}
-                style={styles.quickActionGradient}
-              >
-                <Ionicons name="flag" size={24} color="#fff" />
-                <Text style={styles.quickActionText}>All Tasks</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </View>
-
         {/* Bottom Spacing */}
         <View style={{ height: 100 }} />
       </ScrollView>
-
     </View>
   );
 };

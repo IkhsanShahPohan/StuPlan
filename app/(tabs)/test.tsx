@@ -203,6 +203,13 @@ export default function InsertUsersScreen() {
         >
           <Text style={styles.buttonText}>Hapus Task!</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          activeOpacity={0.7}
+          onPress={() => router.push("")}
+        >
+          <Text style={styles.buttonText}>Hapus Task!</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );

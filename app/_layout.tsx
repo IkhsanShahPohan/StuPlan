@@ -73,7 +73,7 @@ export default function AuthLayout() {
       if (last?.notification) {
         redirect(last.notification);
       }
-    }, 500); // Tunggu 500ms untuk memastikan layout sudah mounted
+    }, 500); // Tunggu 500ms untuk memastikan layout sudah mounted9
 
     return () => {
       subscription.remove();
