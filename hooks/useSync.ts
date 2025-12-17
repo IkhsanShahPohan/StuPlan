@@ -1,44 +1,181 @@
-import { useSyncManager } from "@/lib/useSyncManager";
-import NetInfo from "@react-native-community/netinfo";
-import { useEffect, useState } from "react";
+/**
+ * useSync.ts
+ * React hook untuk mengelola sync operations dengan UI state
+ * 
+ * Features:
+ * - Manage backup/restore state
+ * - Progress tracking
+ * - Error handling
+ * - Easy integration dengan components
+ */
 
-export function useSync(userId: string | null) {
+import {
+  backupToSupabase,
+  checkInternetConnection,
+  getLastBackupTimestamp,
+  hasBackupData,
+  restoreFromSupabase,
+  SyncProgress,
+  SyncResult,
+} from "@/lib/syncService";
+import { useCallback, useState } from "react";
+import { useDrizzle } from "./useDrizzle";
+
+export interface UseSyncReturn {
+  // State
+  isSyncing: boolean;
+  progress: SyncProgress | null;
+  error: string | null;
+  lastBackupDate: Date | null;
+  hasBackup: boolean;
+  isOnline: boolean;
+
+  // Actions
+  backup: () => Promise<SyncResult>;
+  restore: () => Promise<SyncResult>;
+  checkBackupStatus: () => Promise<void>;
+  checkConnection: () => Promise<boolean>;
+  resetError: () => void;
+}
+
+export const useSync = (userId: string): UseSyncReturn => {
+  const db = useDrizzle();
+
+  // State management
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isOnline, setIsOnline] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [progress, setProgress] = useState<SyncProgress | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [lastBackupDate, setLastBackupDate] = useState<Date | null>(null);
+  const [hasBackup, setHasBackup] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
 
-  // Monitor network status
+  /**
+   * Check internet connection
+   */
+  const checkConnection = useCallback(async (): Promise<boolean> => {
+    try {
+      const connected = await checkInternetConnection();
+      setIsOnline(connected);
+      return connected;
+    } catch (err) {
+      setIsOnline(false);
+      return false;
+    }
+  }, []);
 
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      setIsOnline(state.isConnected ?? false);
-      // Auto sync when coming online
-      if (state.isConnected && userId) {
-        handleSync();
-      }
-    });
+  /**
+   * Check backup status (has backup & last backup date)
+   */
+  const checkBackupStatus = useCallback(async () => {
+    try {
+      const [hasData, lastBackup] = await Promise.all([
+        hasBackupData(userId),
+        getLastBackupTimestamp(userId),
+      ]);
 
-    return () => unsubscribe();
+      setHasBackup(hasData);
+      setLastBackupDate(lastBackup);
+    } catch (err) {
+      console.error("Error checking backup status:", err);
+    }
   }, [userId]);
 
-  const handleSync = async () => {
-    if (!userId || isSyncing) return;
-
+  /**
+   * Backup data to Supabase
+   */
+  const backup = useCallback(async (): Promise<SyncResult> => {
     setIsSyncing(true);
+    setError(null);
+    setProgress(null);
+
     try {
-      await useSyncManager.fullSync(userId);
-      setLastSyncTime(new Date());
-    } catch (error) {
-      console.error("Sync error:", error);
+      // Progress callback
+      const onProgress = (prog: SyncProgress) => {
+        setProgress(prog);
+      };
+
+      const result = await backupToSupabase(db, userId, onProgress);
+
+      if (!result.success) {
+        setError(result.message);
+      } else {
+        // Update backup status after successful backup
+        await checkBackupStatus();
+      }
+
+      return result;
+    } catch (err: any) {
+      const errorMsg = err.message || "Gagal mencadangkan data";
+      setError(errorMsg);
+      return {
+        success: false,
+        message: errorMsg,
+        error: errorMsg,
+      };
     } finally {
       setIsSyncing(false);
+      // Keep progress for a bit so user can see completion
+      setTimeout(() => setProgress(null), 2000);
     }
-  };
+  }, [db, userId, checkBackupStatus]);
+
+  /**
+   * Restore data from Supabase
+   */
+  const restore = useCallback(async (): Promise<SyncResult> => {
+    setIsSyncing(true);
+    setError(null);
+    setProgress(null);
+
+    try {
+      // Progress callback
+      const onProgress = (prog: SyncProgress) => {
+        setProgress(prog);
+      };
+
+      const result = await restoreFromSupabase(db, userId, onProgress);
+
+      if (!result.success) {
+        setError(result.message);
+      }
+
+      return result;
+    } catch (err: any) {
+      const errorMsg = err.message || "Gagal memulihkan data";
+      setError(errorMsg);
+      return {
+        success: false,
+        message: errorMsg,
+        error: errorMsg,
+      };
+    } finally {
+      setIsSyncing(false);
+      // Keep progress for a bit so user can see completion
+      setTimeout(() => setProgress(null), 2000);
+    }
+  }, [db, userId]);
+
+  /**
+   * Reset error state
+   */
+  const resetError = useCallback(() => {
+    setError(null);
+  }, []);
 
   return {
+    // State
     isSyncing,
+    progress,
+    error,
+    lastBackupDate,
+    hasBackup,
     isOnline,
-    lastSyncTime,
-    syncNow: handleSync,
+
+    // Actions
+    backup,
+    restore,
+    checkBackupStatus,
+    checkConnection,
+    resetError,
   };
-}
+};

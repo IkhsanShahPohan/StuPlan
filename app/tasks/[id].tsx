@@ -329,6 +329,57 @@ export default function TaskDetailScreen() {
         .filter((w: string) => w.length > 0).length
     : 0;
 
+  // Helper function untuk format reminder text
+  const getReminderText = () => {
+    if (!task.reminderEnabled) return null;
+
+    const absMinutes = Math.abs(task.reminderMinutes || 0);
+    if (absMinutes === 0) return "Saat deadline";
+    if (absMinutes < 60) return `${absMinutes} menit sebelumnya`;
+    if (absMinutes < 1440)
+      return `${Math.floor(absMinutes / 60)} jam sebelumnya`;
+    return `${Math.floor(absMinutes / 1440)} hari sebelumnya`;
+  };
+
+  // Helper function untuk format repeat text
+  const getRepeatText = () => {
+    if (!task.repeatEnabled || !task.repeatMode) return null;
+
+    let text = "";
+    const interval = task.repeatInterval || 1;
+
+    if (task.repeatMode === "daily") {
+      text = interval === 1 ? "Setiap hari" : `Setiap ${interval} hari`;
+    } else if (task.repeatMode === "weekly") {
+      text = interval === 1 ? "Setiap minggu" : `Setiap ${interval} minggu`;
+      
+      // Parse selectedDays
+      if (task.selectedDays) {
+        try {
+          const days = JSON.parse(task.selectedDays);
+          if (Array.isArray(days) && days.length > 0) {
+            const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+            const dayLabels = days.map((d: number) => dayNames[d]).join(", ");
+            text += ` (${dayLabels})`;
+          }
+        } catch (e) {
+          // Ignore parse error
+        }
+      }
+    } else if (task.repeatMode === "monthly") {
+      text = interval === 1 ? "Setiap bulan" : `Setiap ${interval} bulan`;
+    } else if (task.repeatMode === "yearly") {
+      text = interval === 1 ? "Setiap tahun" : `Setiap ${interval} tahun`;
+    }
+
+    // Add end option info
+    if (task.category !== "tugas" && task.repeatEndOption === "months" && task.repeatEndMonths) {
+      text += ` - ${task.repeatEndMonths} bulan`;
+    }
+
+    return text;
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -469,22 +520,22 @@ export default function TaskDetailScreen() {
                     styles.overdueText,
                 ]}
               >
-                {task.repeatOption === "yearly"
+                {task.repeatMode === "yearly"
                   ? deadline.toLocaleDateString("id-ID", {
                       day: "numeric",
                       month: "long",
                     })
-                  : task.repeatOption === "monthly"
+                  : task.repeatMode === "monthly"
                     ? deadline.toLocaleDateString("id-ID", {
                         day: "numeric",
                         month: "long",
                       })
-                    : task.repeatOption === "weekly"
+                    : task.repeatMode === "weekly"
                       ? deadline.toLocaleDateString("id-ID", {
                           weekday: "long",
                         })
-                      : task.repeatOption === "daily"
-                        ? "Setiap hari!"
+                      : task.repeatMode === "daily"
+                        ? "Setiap hari"
                         : deadline.toLocaleDateString("id-ID", {
                             weekday: "long",
                             day: "numeric",
@@ -500,6 +551,7 @@ export default function TaskDetailScreen() {
                 {deadline.toLocaleTimeString("id-ID", {
                   hour: "2-digit",
                   minute: "2-digit",
+                  hour12: false,
                 })}
               </Text>
             </View>
@@ -527,10 +579,7 @@ export default function TaskDetailScreen() {
               <View style={styles.reminderRow}>
                 <Ionicons name="time-outline" size={18} color="#8E8E93" />
                 <Text style={styles.reminderText}>
-                  Pengingat{" "}
-                  {task.reminderDaysBefore === 0
-                    ? "hari yang sama"
-                    : `${task.reminderDaysBefore} hari sebelumnya`}
+                  {getReminderText()}
                 </Text>
               </View>
 
@@ -545,32 +594,29 @@ export default function TaskDetailScreen() {
         )}
 
         {/* Repeat Card */}
-        {task.repeatEnabled && task.repeatOption !== "none" && (
+        {task.repeatEnabled && task.repeatMode && (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <View style={styles.cardHeaderLeft}>
-                <Ionicons name="repeat" size={20} color="#F57C00" />
+                <Ionicons name="repeat" size={20} color="#5856D6" />
                 <Text style={styles.cardTitle}>Pengulangan</Text>
               </View>
             </View>
 
             <View style={styles.repeatContent}>
               <View style={styles.repeatBadge}>
-                <Ionicons name="sync" size={16} color="#F57C00" />
+                <Ionicons name="sync" size={16} color="#5856D6" />
                 <Text style={styles.repeatBadgeText}>
-                  {task.repeatOption === "daily" && "Setiap Hari"}
-                  {task.repeatOption === "weekly" && "Setiap Minggu"}
-                  {task.repeatOption === "monthly" && "Setiap Bulan"}
-                  {task.repeatOption === "yearly" && "Setiap Tahun"}
-                  {task.repeatOption === "custom" &&
-                    `Setiap ${task.customInterval} ${task.customUnit}`}
+                  {getRepeatText()}
                 </Text>
               </View>
 
               <Text style={styles.repeatEndText}>
-                {task.endOption === "never"
-                  ? "Berulang tanpa batas (sampai dihapus)"
-                  : "Berulang sampai deadline"}
+                {task.repeatEndOption === "never"
+                  ? "Berulang tanpa batas"
+                  : task.repeatEndOption === "months" && task.repeatEndMonths
+                    ? `Berulang selama ${task.repeatEndMonths} bulan`
+                    : "Berulang sampai deadline"}
               </Text>
             </View>
           </View>
@@ -595,12 +641,12 @@ export default function TaskDetailScreen() {
                 <Text style={styles.notesText} numberOfLines={5}>
                   {task.notes}
                 </Text>
-                <View style={styles.notesFooter}>
+                {/* <View style={styles.notesFooter}>
                   <Text style={styles.notesWordCount}>
                     {notesWordCount} kata
                   </Text>
                   <Ionicons name="pencil" size={16} color="#007AFF" />
-                </View>
+                </View> */}
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
@@ -761,7 +807,14 @@ export default function TaskDetailScreen() {
           <View style={styles.actionButtonsContainer}>
             <TouchableOpacity
               style={styles.editButton}
-              onPress={() => setIsEditTaskModal(true)}
+              onPress={() =>
+                router.push({
+                  pathname: "/tasks/edit",
+                  params: {
+                    id: task.id,
+                  },
+                })
+              }
               activeOpacity={0.8}
             >
               <Ionicons name="pencil" size={20} color="#FFFFFF" />
@@ -1116,7 +1169,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#FFF3E0",
+    backgroundColor: "#EDE7F6",
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 10,
@@ -1125,7 +1178,7 @@ const styles = StyleSheet.create({
 
   repeatBadgeText: {
     fontSize: 14,
-    color: "#F57C00",
+    color: "#5856D6",
     fontWeight: "600",
   },
 

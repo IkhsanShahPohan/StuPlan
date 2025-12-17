@@ -1,5 +1,16 @@
+/**
+ * AuthContext.tsx - UPDATED
+ * Menambahkan logic auto-restore saat login pertama kali
+ * 
+ * New Features:
+ * - Auto-restore data dari Supabase saat login di device baru
+ * - Check apakah SQLite kosong (device baru)
+ * - Redirect ke backup screen setelah onboarding untuk first-time users
+ */
+
 import { users } from "@/db/schema";
 import { supabase } from "@/lib/supabase";
+import { restoreFromSupabase } from "@/lib/syncService";
 import { Session, User } from "@supabase/supabase-js";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/expo-sqlite";
@@ -13,6 +24,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   needsOnboarding: boolean;
+  isRestoringData: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -23,6 +35,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   needsOnboarding: false,
+  isRestoringData: false,
   signIn: async () => ({ error: null }),
   signUp: async () => ({ error: null }),
   signOut: async () => {},
@@ -35,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [isRestoringData, setIsRestoringData] = useState(false);
   const sqlite = useSQLiteContext();
   const db = drizzle(sqlite);
   const router = useRouter();
@@ -42,13 +56,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
 
       // Sync user to local SQLite
       if (session?.user) {
-        syncUserToLocal(session.user);
+        await syncUserToLocal(session.user);
       }
 
       setLoading(false);
@@ -57,14 +71,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log("Auth state changed:", _event, session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
 
       // Sync user to local SQLite
       if (session?.user) {
-        syncUserToLocal(session.user);
+        await syncUserToLocal(session.user);
+        
+        // 🆕 AUTO-RESTORE: Cek apakah perlu restore data
+        if (_event === "SIGNED_IN") {
+          await attemptAutoRestore(session.user.id);
+        } 
       }
     });
 
@@ -73,22 +92,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Protected routes navigation
   useEffect(() => {
-    if (loading) return;
+    if (loading || isRestoringData) return;
 
     const inAuthGroup = segments[0] === "(auth)";
     const inOnboarding = segments[0] === "onboarding";
-    checkOnboardingStatus(user?.id);
+    const inResetPassword = segments.includes("reset-password");
+    const inBackup = segments[0] === "backup";
+
     if (!user && !inAuthGroup) {
-      // Tidak ada user, redirect ke sign-in
       router.replace("/sign-in");
     } else if (user && needsOnboarding && !inOnboarding) {
-      // User ada tapi belum onboarding
       router.replace("/onboarding");
-    } else if (user && !needsOnboarding && (inAuthGroup || inOnboarding)) {
-      // User sudah complete onboarding, tapi masih di auth group
+    } else if (
+      user &&
+      !needsOnboarding &&
+      (inAuthGroup || inOnboarding) &&
+      !inResetPassword &&
+      !inBackup
+    ) {
       router.replace("/(tabs)");
     }
-  }, [user, loading, needsOnboarding, segments]);
+  }, [user, loading, needsOnboarding, isRestoringData, segments]);
+
+  /**
+   * 🆕 AUTO-RESTORE LOGIC
+   * Dipanggil saat user login untuk cek apakah perlu restore data
+   */
+  const attemptAutoRestore = async (userId: string) => {
+    try {
+      setIsRestoringData(true);
+
+      // Check apakah SQLite sudah punya data tasks
+      const existingTasks = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      // Jika user sudah ada di SQLite, cek apakah ada tasks
+      if (existingTasks.length > 0) {
+        // Import tasks table untuk check
+        const { tasks } = await import("@/db/schema");
+        const localTasks = await db
+          .select()
+          .from(tasks)
+          .where(eq(tasks.userId, userId))
+          .limit(1);
+
+        // Jika tidak ada tasks lokal, coba restore dari Supabase
+        if (localTasks.length === 0) {
+          console.log("📥 No local tasks found, attempting restore...");
+
+          const result = await restoreFromSupabase(db, userId, (progress) => {
+            console.log(
+              `Restore progress: ${progress.step} - ${progress.message}`
+            );
+          });
+
+          if (result.success && (result.tasksRestored ?? 0) > 0) {
+            console.log(
+              `✅ Restored ${result.tasksRestored} tasks and ${result.subtasksRestored} subtasks`
+            );
+            
+            // Optional: Show success message
+            Alert.alert(
+              "Data Dipulihkan",
+              `Berhasil memulihkan ${result.tasksRestored} tugas dari server.`,
+              [{ text: "OK" }]
+            );
+          } else if (result.error === "NO_INTERNET") {
+            console.log("⚠️ No internet connection for restore");
+            // Silent fail - user can try backup manually later
+          } else {
+            console.log("ℹ️ No backup data found or restore skipped");
+          }
+        } else {
+          console.log("✅ Local tasks exist, skipping restore");
+        }
+      }
+    } catch (error) {
+      console.error("❌ Auto-restore error:", error);
+      // Silent fail - don't block user flow
+    } finally {
+      setIsRestoringData(false);
+    }
+  };
 
   const checkOnboardingStatus = async (userId: string | undefined) => {
     if (!userId) {
@@ -207,6 +295,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         loading,
         needsOnboarding,
+        isRestoringData,
         signIn,
         signUp,
         signOut,

@@ -1,312 +1,436 @@
-import { subtasks as subtasksTable, tasks as tasksTable } from "@/db/schema";
-import { useDrizzle } from "@/hooks/useDrizzle";
+/**
+ * syncService.ts
+ * Core service untuk sinkronisasi data SQLite ↔️ Supabase
+ * 
+ * Features:
+ * - Backup: Upload tasks & subtasks ke Supabase
+ * - Restore: Download dari Supabase ke SQLite
+ * - Conflict resolution: Last-write-wins
+ * - Progress tracking untuk UI
+ */
+
+import { NewSubtask, NewTask, subtasks, tasks, users } from "@/db/schema";
+import { supabase } from "@/lib/supabase";
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/expo-sqlite";
-import { supabase } from "./supabase";
+import { SQLiteDatabase } from "expo-sqlite";
+import NetInfo from "@react-native-community/netinfo";
+
+export interface SyncProgress {
+  step: 'checking' | 'uploading_tasks' | 'uploading_subtasks' | 'downloading_tasks' | 'downloading_subtasks' | 'completed' | 'error';
+  current: number;
+  total: number;
+  message: string;
+}
 
 export interface SyncResult {
   success: boolean;
   message: string;
-  uploadedTasks?: number;
-  downloadedTasks?: number;
-  errors?: string[];
+  tasksBackedUp?: number;
+  subtasksBackedUp?: number;
+  tasksRestored?: number;
+  subtasksRestored?: number;
+  error?: string;
 }
 
-export class SyncService {
-  private db: ReturnType<typeof drizzle>;
+export type SyncProgressCallback = (progress: SyncProgress) => void;
 
-  constructor() {
-    this.db = useDrizzle();
-  }
+/**
+ * Check internet connectivity
+ */
+export const checkInternetConnection = async (): Promise<boolean> => {
+  const state = await NetInfo.fetch();
+  return state.isConnected ?? false;
+};
 
-  /**
-   * Upload semua tasks dari SQLite ke Supabase
-   */
-  async uploadToSupabase(userId: string): Promise<SyncResult> {
-    const errors: string[] = [];
-    let uploadedCount = 0;
+/**
+ * BACKUP: Upload SQLite data → Supabase
+ */
+export const backupToSupabase = async (
+  db: any, // Drizzle SQLite database
+  userId: string,
+  onProgress?: SyncProgressCallback
+): Promise<SyncResult> => {
+  try {
+    // Step 1: Check internet
+    onProgress?.({
+      step: 'checking',
+      current: 0,
+      total: 100,
+      message: 'Memeriksa koneksi internet...'
+    });
 
-    try {
-      // 1. Fetch semua tasks lokal
-      const localTasks = await this.db
+    const isConnected = await checkInternetConnection();
+    if (!isConnected) {
+      return {
+        success: false,
+        message: 'Tidak ada koneksi internet',
+        error: 'NO_INTERNET'
+      };
+    }
+
+    // Step 2: Fetch all tasks from SQLite
+    onProgress?.({
+      step: 'uploading_tasks',
+      current: 10,
+      total: 100,
+      message: 'Mengambil data tugas...'
+    });
+
+    const localTasks = await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.userId, userId));
+
+    if (localTasks.length === 0) {
+      return {
+        success: true,
+        message: 'Tidak ada data untuk dicadangkan',
+        tasksBackedUp: 0,
+        subtasksBackedUp: 0
+      };
+    }
+
+    // Step 3: Upload tasks to Supabase
+    onProgress?.({
+      step: 'uploading_tasks',
+      current: 30,
+      total: 100,
+      message: `Mencadangkan ${localTasks.length} tugas...`
+    });
+
+    // Transform SQLite tasks to Supabase format
+    const tasksToUpload = localTasks.map(task => ({
+      id: task.id,
+      user_id: userId,
+      title: task.title,
+      description: task.description,
+      notes: task.notes,
+      category: task.category,
+      deadline: task.deadline,
+      reminder_enabled: task.reminderEnabled,
+      reminder_minutes: task.reminderMinutes,
+      reminder_time: task.reminderTime,
+      repeat_enabled: task.repeatEnabled,
+      repeat_mode: task.repeatMode,
+      repeat_interval: task.repeatInterval,
+      selected_days: task.selectedDays,
+      repeat_end_option: task.repeatEndOption,
+      repeat_end_months: task.repeatEndMonths,
+      status: task.status,
+      notification_ids: task.notificationIds,
+      created_at: task.createdAt,
+      updated_at: task.updatedAt
+    }));
+
+    // Upsert tasks (insert or update if exists)
+    const { error: tasksError } = await supabase
+      .from('tasks')
+      .upsert(tasksToUpload, { 
+        onConflict: 'id',
+        ignoreDuplicates: false 
+      });
+
+    if (tasksError) {
+      throw new Error(`Gagal mencadangkan tugas: ${tasksError.message}`);
+    }
+
+    // Step 4: Fetch all subtasks
+    onProgress?.({
+      step: 'uploading_subtasks',
+      current: 60,
+      total: 100,
+      message: 'Mencadangkan sub-tugas...'
+    });
+
+    const taskIds = localTasks.map(t => t.id);
+    const localSubtasks = await db
+      .select()
+      .from(subtasks)
+      .where(
+        // Get subtasks for all task IDs
+        taskIds.length > 0 
+          ? eq(subtasks.taskId, taskIds[0]) // Placeholder, akan di-fix
+          : eq(subtasks.id, -1) // No match
+      );
+
+    // Better approach: fetch subtasks for each task
+    let allSubtasks: any[] = [];
+    for (const taskId of taskIds) {
+      const taskSubtasks = await db
         .select()
-        .from(tasksTable)
-        .where(eq(tasksTable.userId, userId));
+        .from(subtasks)
+        .where(eq(subtasks.taskId, taskId));
+      allSubtasks = [...allSubtasks, ...taskSubtasks];
+    }
 
-      if (localTasks.length === 0) {
-        return {
-          success: true,
-          message: "Tidak ada data untuk disinkronkan",
-          uploadedTasks: 0,
-        };
+    // Step 5: Upload subtasks if any
+    let subtasksCount = 0;
+    if (allSubtasks.length > 0) {
+      const subtasksToUpload = allSubtasks.map(subtask => ({
+        id: subtask.id,
+        task_id: subtask.taskId,
+        title: subtask.title,
+        completed: subtask.completed,
+        created_at: subtask.createdAt
+      }));
+
+      const { error: subtasksError } = await supabase
+        .from('subtasks')
+        .upsert(subtasksToUpload, { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
+
+      if (subtasksError) {
+        throw new Error(`Gagal mencadangkan sub-tugas: ${subtasksError.message}`);
       }
 
-      // 2. Upload setiap task beserta subtasks-nya
-      for (const task of localTasks) {
-        try {
-          // Fetch subtasks untuk task ini
-          const localSubtasks = await this.db
-            .select()
-            .from(subtasksTable)
-            .where(eq(subtasksTable.taskId, task.id));
+      subtasksCount = allSubtasks.length;
+    }
 
-          // Upload task ke Supabase
-          const { data: uploadedTask, error: taskError } = await supabase
-            .from("tasks")
-            .upsert({
-              id: task.id,
-              user_id: task.userId,
-              title: task.title,
-              description: task.description,
-              notes: task.notes,
-              category: task.category,
-              deadline: task.deadline,
-              reminder_enabled: task.reminderEnabled,
-              reminder_days_before: task.reminderDaysBefore,
-              reminder_time: task.reminderTime,
-              repeat_enabled: task.repeatEnabled,
-              repeat_option: task.repeatOption,
-              custom_interval: task.customInterval,
-              custom_unit: task.customUnit,
-              end_option: task.endOption,
-              status: task.status,
-              notification_ids: task.notificationIds,
-              created_at: task.createdAt,
-              updated_at: new Date().toISOString(),
-            })
-            .select()
-            .single();
+    // Step 6: Completed
+    onProgress?.({
+      step: 'completed',
+      current: 100,
+      total: 100,
+      message: 'Pencadangan selesai!'
+    });
 
-          if (taskError) {
-            errors.push(`Task "${task.title}": ${taskError.message}`);
-            continue;
-          }
+    return {
+      success: true,
+      message: `Berhasil mencadangkan ${localTasks.length} tugas dan ${subtasksCount} sub-tugas`,
+      tasksBackedUp: localTasks.length,
+      subtasksBackedUp: subtasksCount
+    };
 
-          // Upload subtasks jika ada
-          if (localSubtasks.length > 0 && uploadedTask) {
-            const subtasksToUpload = localSubtasks.map((subtask) => ({
-              task_id: uploadedTask.id,
-              title: subtask.title,
-              completed: subtask.completed,
-              created_at: subtask.createdAt,
-            }));
+  } catch (error: any) {
+    console.error('Backup error:', error);
+    
+    onProgress?.({
+      step: 'error',
+      current: 0,
+      total: 100,
+      message: error.message || 'Terjadi kesalahan saat mencadangkan'
+    });
 
-            const { error: subtasksError } = await supabase
-              .from("subtasks")
-              .upsert(subtasksToUpload);
+    return {
+      success: false,
+      message: error.message || 'Gagal mencadangkan data',
+      error: error.message
+    };
+  }
+};
 
-            if (subtasksError) {
-              errors.push(
-                `Subtasks for "${task.title}": ${subtasksError.message}`
-              );
-            }
-          }
+/**
+ * RESTORE: Download Supabase data → SQLite
+ * Dipanggil saat login pertama kali di device baru
+ */
+export const restoreFromSupabase = async (
+  db: any, // Drizzle SQLite database
+  userId: string,
+  onProgress?: SyncProgressCallback
+): Promise<SyncResult> => {
+  try {
+    // Step 1: Check internet
+    onProgress?.({
+      step: 'checking',
+      current: 0,
+      total: 100,
+      message: 'Memeriksa koneksi internet...'
+    });
 
-          uploadedCount++;
-        } catch (err: any) {
-          errors.push(`Task "${task.title}": ${err.message}`);
-        }
-      }
-
-      return {
-        success: errors.length === 0,
-        message:
-          errors.length === 0
-            ? `Berhasil upload ${uploadedCount} tasks ke cloud`
-            : `Upload selesai dengan ${errors.length} error`,
-        uploadedTasks: uploadedCount,
-        errors: errors.length > 0 ? errors : undefined,
-      };
-    } catch (error: any) {
-      console.error("Upload error:", error);
+    const isConnected = await checkInternetConnection();
+    if (!isConnected) {
       return {
         success: false,
-        message: `Gagal upload: ${error.message}`,
-        uploadedTasks: uploadedCount,
-        errors: [error.message],
+        message: 'Tidak ada koneksi internet',
+        error: 'NO_INTERNET'
       };
     }
-  }
 
-  /**
-   * Download semua tasks dari Supabase ke SQLite
-   */
-  async downloadFromSupabase(userId: string): Promise<SyncResult> {
-    const errors: string[] = [];
-    let downloadedCount = 0;
+    // Step 2: Check if SQLite already has data
+    onProgress?.({
+      step: 'checking',
+      current: 10,
+      total: 100,
+      message: 'Memeriksa data lokal...'
+    });
 
-    try {
-      // 1. Fetch semua tasks dari Supabase
-      const { data: cloudTasks, error: tasksError } = await supabase
-        .from("tasks")
-        .select("*")
-        .eq("user_id", userId);
+    const existingTasks = await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.userId, userId));
 
-      if (tasksError) {
-        return {
-          success: false,
-          message: `Gagal download: ${tasksError.message}`,
-          errors: [tasksError.message],
-        };
-      }
-
-      if (!cloudTasks || cloudTasks.length === 0) {
-        return {
-          success: true,
-          message: "Tidak ada data di cloud",
-          downloadedTasks: 0,
-        };
-      }
-
-      // 2. Clear local tasks terlebih dahulu (optional, tergantung strategi)
-      // await this.db.delete(tasksTable).where(eq(tasksTable.userId, userId));
-
-      // 3. Insert/update setiap task beserta subtasks
-      for (const cloudTask of cloudTasks) {
-        try {
-          // Fetch subtasks untuk task ini
-          const { data: cloudSubtasks, error: subtasksError } = await supabase
-            .from("subtasks")
-            .select("*")
-            .eq("task_id", cloudTask.id);
-
-          if (subtasksError) {
-            errors.push(
-              `Subtasks for task ${cloudTask.id}: ${subtasksError.message}`
-            );
-          }
-
-          // Check if task sudah ada di lokal
-          const existingTask = await this.db
-            .select()
-            .from(tasksTable)
-            .where(eq(tasksTable.id, cloudTask.id))
-            .limit(1);
-
-          if (existingTask.length > 0) {
-            // Update existing task
-            await this.db
-              .update(tasksTable)
-              .set({
-                title: cloudTask.title,
-                description: cloudTask.description,
-                notes: cloudTask.notes,
-                category: cloudTask.category,
-                deadline: cloudTask.deadline,
-                reminderEnabled: cloudTask.reminder_enabled,
-                reminderDaysBefore: cloudTask.reminder_days_before,
-                reminderTime: cloudTask.reminder_time,
-                repeatEnabled: cloudTask.repeat_enabled,
-                repeatOption: cloudTask.repeat_option,
-                customInterval: cloudTask.custom_interval,
-                customUnit: cloudTask.custom_unit,
-                endOption: cloudTask.end_option,
-                status: cloudTask.status,
-                notificationIds: cloudTask.notification_ids,
-                updatedAt: new Date().toISOString(),
-              })
-              .where(eq(tasksTable.id, cloudTask.id));
-          } else {
-            // Insert new task
-            await this.db.insert(tasksTable).values({
-              id: cloudTask.id,
-              userId: cloudTask.user_id,
-              title: cloudTask.title,
-              description: cloudTask.description,
-              notes: cloudTask.notes,
-              category: cloudTask.category,
-              deadline: cloudTask.deadline,
-              reminderEnabled: cloudTask.reminder_enabled,
-              reminderDaysBefore: cloudTask.reminder_days_before,
-              reminderTime: cloudTask.reminder_time,
-              repeatEnabled: cloudTask.repeat_enabled,
-              repeatOption: cloudTask.repeat_option,
-              customInterval: cloudTask.custom_interval,
-              customUnit: cloudTask.custom_unit,
-              endOption: cloudTask.end_option,
-              status: cloudTask.status,
-              notificationIds: cloudTask.notification_ids,
-              createdAt: cloudTask.created_at,
-              updatedAt: new Date().toISOString(),
-            });
-          }
-
-          // Insert/update subtasks
-          if (cloudSubtasks && cloudSubtasks.length > 0) {
-            // Delete existing subtasks
-            await this.db
-              .delete(subtasksTable)
-              .where(eq(subtasksTable.taskId, cloudTask.id));
-
-            // Insert new subtasks
-            for (const subtask of cloudSubtasks) {
-              await this.db.insert(subtasksTable).values({
-                id: subtask.id,
-                taskId: cloudTask.id,
-                title: subtask.title,
-                completed: subtask.completed,
-                createdAt: subtask.created_at,
-              });
-            }
-          }
-
-          downloadedCount++;
-        } catch (err: any) {
-          errors.push(`Task ${cloudTask.id}: ${err.message}`);
-        }
-      }
-
+    if (existingTasks.length > 0) {
+      // Data sudah ada, skip restore
       return {
-        success: errors.length === 0,
-        message:
-          errors.length === 0
-            ? `Berhasil download ${downloadedCount} tasks dari cloud`
-            : `Download selesai dengan ${errors.length} error`,
-        downloadedTasks: downloadedCount,
-        errors: errors.length > 0 ? errors : undefined,
-      };
-    } catch (error: any) {
-      console.error("Download error:", error);
-      return {
-        success: false,
-        message: `Gagal download: ${error.message}`,
-        downloadedTasks: downloadedCount,
-        errors: [error.message],
+        success: true,
+        message: 'Data sudah tersedia di perangkat ini',
+        tasksRestored: 0,
+        subtasksRestored: 0
       };
     }
-  }
 
-  /**
-   * Full sync: download dulu, lalu upload
-   */
-  async fullSync(userId: string): Promise<SyncResult> {
-    try {
-      // 1. Download dari cloud terlebih dahulu
-      const downloadResult = await this.downloadFromSupabase(userId);
+    // Step 3: Download tasks from Supabase
+    onProgress?.({
+      step: 'downloading_tasks',
+      current: 30,
+      total: 100,
+      message: 'Mengunduh tugas dari server...'
+    });
 
-      if (!downloadResult.success) {
-        return downloadResult;
-      }
+    const { data: supabaseTasks, error: tasksError } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
 
-      // 2. Upload ke cloud
-      const uploadResult = await this.uploadToSupabase(userId);
+    if (tasksError) {
+      throw new Error(`Gagal mengunduh tugas: ${tasksError.message}`);
+    }
 
+    if (!supabaseTasks || supabaseTasks.length === 0) {
       return {
-        success: downloadResult.success && uploadResult.success,
-        message: `Download: ${downloadResult.message}\nUpload: ${uploadResult.message}`,
-        downloadedTasks: downloadResult.downloadedTasks,
-        uploadedTasks: uploadResult.uploadedTasks,
-        errors: [
-          ...(downloadResult.errors || []),
-          ...(uploadResult.errors || []),
-        ],
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        message: `Full sync error: ${error.message}`,
-        errors: [error.message],
+        success: true,
+        message: 'Tidak ada data di server',
+        tasksRestored: 0,
+        subtasksRestored: 0
       };
     }
+
+    // Step 4: Insert tasks to SQLite
+    onProgress?.({
+      step: 'downloading_tasks',
+      current: 50,
+      total: 100,
+      message: `Menyimpan ${supabaseTasks.length} tugas...`
+    });
+
+    // Transform Supabase tasks to SQLite format
+    const tasksToInsert: NewTask[] = supabaseTasks.map(task => ({
+      id: task.id,
+      userId: userId,
+      title: task.title,
+      description: task.description,
+      notes: task.notes,
+      category: task.category,
+      deadline: task.deadline,
+      reminderEnabled: task.reminder_enabled,
+      reminderMinutes: task.reminder_minutes,
+      reminderTime: task.reminder_time,
+      repeatEnabled: task.repeat_enabled,
+      repeatMode: task.repeat_mode,
+      repeatInterval: task.repeat_interval,
+      selectedDays: task.selected_days,
+      repeatEndOption: task.repeat_end_option,
+      repeatEndMonths: task.repeat_end_months,
+      status: task.status,
+      notificationIds: task.notification_ids,
+      createdAt: task.created_at,
+      updatedAt: task.updated_at
+    }));
+
+    // Batch insert tasks
+    await db.insert(tasks).values(tasksToInsert);
+
+    // Step 5: Download subtasks
+    onProgress?.({
+      step: 'downloading_subtasks',
+      current: 70,
+      total: 100,
+      message: 'Mengunduh sub-tugas...'
+    });
+
+    const taskIds = supabaseTasks.map(t => t.id);
+    
+    const { data: supabaseSubtasks, error: subtasksError } = await supabase
+      .from('subtasks')
+      .select('*')
+      .in('task_id', taskIds);
+
+    // Step 6: Insert subtasks if any
+    let subtasksCount = 0;
+    if (supabaseSubtasks && supabaseSubtasks.length > 0) {
+      const subtasksToInsert: NewSubtask[] = supabaseSubtasks.map(subtask => ({
+        id: subtask.id,
+        taskId: subtask.task_id,
+        title: subtask.title,
+        completed: subtask.completed,
+        createdAt: subtask.created_at
+      }));
+
+      await db.insert(subtasks).values(subtasksToInsert);
+      subtasksCount = supabaseSubtasks.length;
+    }
+
+    // Step 7: Completed
+    onProgress?.({
+      step: 'completed',
+      current: 100,
+      total: 100,
+      message: 'Pemulihan data selesai!'
+    });
+
+    return {
+      success: true,
+      message: `Berhasil memulihkan ${supabaseTasks.length} tugas dan ${subtasksCount} sub-tugas`,
+      tasksRestored: supabaseTasks.length,
+      subtasksRestored: subtasksCount
+    };
+
+  } catch (error: any) {
+    console.error('Restore error:', error);
+    
+    onProgress?.({
+      step: 'error',
+      current: 0,
+      total: 100,
+      message: error.message || 'Terjadi kesalahan saat memulihkan data'
+    });
+
+    return {
+      success: false,
+      message: error.message || 'Gagal memulihkan data',
+      error: error.message
+    };
   }
-}
+};
+
+/**
+ * Check if user has backup data in Supabase
+ */
+export const hasBackupData = async (userId: string): Promise<boolean> => {
+  try {
+    const { count, error } = await supabase
+      .from('tasks')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    return (count ?? 0) > 0;
+  } catch (error) {
+    console.error('Error checking backup:', error);
+    return false;
+  }
+};
+
+/**
+ * Get last backup timestamp
+ */
+export const getLastBackupTimestamp = async (userId: string): Promise<Date | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('updated_at')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) return null;
+    return new Date(data.updated_at);
+  } catch (error) {
+    console.error('Error getting last backup:', error);
+    return null;
+  }
+};

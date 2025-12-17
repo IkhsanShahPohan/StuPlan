@@ -1,3 +1,6 @@
+import { useAuth } from "@/lib/AuthContext";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -8,16 +11,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  StatusBar,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import { useAuth } from "@/lib/AuthContext";
 
 const { height, width } = Dimensions.get("window");
 
@@ -37,55 +37,82 @@ export default function SignUp() {
   const { signUp } = useAuth();
 
   async function handleSignUp() {
-    if (!name || !email || !password || !confirmPassword) {
-      Alert.alert("Error", "Please fill in all fields");
+    // Validasi input kosong
+    if (!email || !password || !confirmPassword) {
+      Alert.alert("Kesalahan", "Harap isi semua kolom");
       return;
     }
 
-    if (name.trim().length < 2) {
-      Alert.alert("Error", "Name must be at least 2 characters");
-      return;
-    }
-
+    // // Validasi format email
     if (!email.includes("@")) {
-      Alert.alert("Error", "Please enter a valid email address");
+      Alert.alert("Kesalahan", "Harap masukkan alamat email yang valid");
       return;
     }
 
+    // Validasi panjang password
     if (password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters");
+      Alert.alert("Kesalahan", "Password minimal 6 karakter");
       return;
     }
 
+    // Validasi password match
     if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match");
+      Alert.alert("Kesalahan", "Password tidak sama");
       return;
     }
 
     setLoading(true);
+    console.log(email)
+    console.log(password)
+    console.log("Nama: Ikhsan")
 
     try {
-      const { error } = await signUp(email, password);
+      const result = await signUp(email, password);
 
-      if (error) {
-        if (error.message.includes("already registered")) {
-          Alert.alert(
-            "Account Exists",
-            "This email is already registered. Please sign in instead."
-          );
-        } else if (error.message.includes("Password should be")) {
-          Alert.alert("Error", "Password must be at least 6 characters");
-        } else {
-          Alert.alert("Error", error.message);
-        }
+      // Cek jika result undefined atau null
+      if (!result) {
         setLoading(false);
+        Alert.alert("Kesalahan", "Terjadi kesalahan saat membuat akun");
         return;
       }
 
+      const { error } = result;
+      console.log("Berhasil");
+      if (error) {
+        setLoading(false);
+
+        // Handle berbagai jenis error
+        const errorMessage = error.message || error.toString();
+
+        if (
+          errorMessage.includes("already registered") ||
+          errorMessage.includes("User already registered")
+        ) {
+          Alert.alert(
+            "Akun Sudah Ada",
+            "Email ini sudah terdaftar. Silakan masuk atau gunakan email lain."
+          );
+        } else if (
+          errorMessage.includes("Password should be") ||
+          errorMessage.includes("password")
+        ) {
+          Alert.alert("Kesalahan", "Password minimal 6 karakter");
+        } else if (
+          errorMessage.includes("Invalid email") ||
+          errorMessage.includes("email")
+        ) {
+          Alert.alert("Kesalahan", "Format email tidak valid");
+        } else {
+          Alert.alert("Kesalahan", `Gagal membuat akun: ${errorMessage}`);
+        }
+        return;
+      }
+
+      // Sukses
       setLoading(false);
       Alert.alert(
-        "Success! 🎉",
-        `Welcome ${name}! Your account has been created successfully. Please check your email to verify your account.`,
+        "Berhasil! 🎉",
+        "Akun Anda berhasil dibuat. Silakan cek email Anda untuk verifikasi akun.",
         [
           {
             text: "OK",
@@ -95,8 +122,12 @@ export default function SignUp() {
       );
     } catch (error: any) {
       setLoading(false);
-      Alert.alert("Error", "An unexpected error occurred");
       console.error("Sign up error:", error);
+
+      // Handle error yang tidak terduga
+      const errorMessage =
+        error?.message || error?.toString() || "Terjadi kesalahan";
+      Alert.alert("Kesalahan", `Terjadi kesalahan: ${errorMessage}`);
     }
   }
 
@@ -128,46 +159,17 @@ export default function SignUp() {
                   resizeMode="contain"
                 />
               </View>
-              <Text style={styles.title}>Create Account</Text>
+              <Text style={styles.title}>Buat Akun</Text>
               <Text style={styles.subtitle}>
-                Join us and start your journey today
+                Bergabunglah dengan kami dan mulai perjalanan Anda
               </Text>
             </View>
 
             {/* Form Card */}
             <View style={styles.card}>
-              {/* Name Input */}
-              {/* <View style={styles.inputContainer}>
-                <Text style={styles.label}>FULL NAME</Text>
-                <View
-                  style={[
-                    styles.inputWrapper,
-                    nameFocused && styles.inputWrapperFocused,
-                  ]}
-                >
-                  <Ionicons
-                    name="person-outline"
-                    size={20}
-                    color={nameFocused ? "#2563eb" : "#9ca3af"}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    placeholder="John Doe"
-                    placeholderTextColor="#9ca3af"
-                    value={name}
-                    onChangeText={setName}
-                    onFocus={() => setNameFocused(true)}
-                    onBlur={() => setNameFocused(false)}
-                    autoCapitalize="words"
-                    style={styles.input}
-                    editable={!loading}
-                  />
-                </View>
-              </View> */}
-
               {/* Email Input */}
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>EMAIL ADDRESS</Text>
+                <Text style={styles.label}>ALAMAT EMAIL</Text>
                 <View
                   style={[
                     styles.inputWrapper,
@@ -181,7 +183,7 @@ export default function SignUp() {
                     style={styles.inputIcon}
                   />
                   <TextInput
-                    placeholder="your@email.com"
+                    placeholder="email@anda.com"
                     placeholderTextColor="#9ca3af"
                     value={email}
                     onChangeText={setEmail}
@@ -211,7 +213,7 @@ export default function SignUp() {
                     style={styles.inputIcon}
                   />
                   <TextInput
-                    placeholder="Min. 6 characters"
+                    placeholder="Min. 6 karakter"
                     placeholderTextColor="#9ca3af"
                     value={password}
                     onChangeText={setPassword}
@@ -239,7 +241,7 @@ export default function SignUp() {
 
               {/* Confirm Password Input */}
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>CONFIRM PASSWORD</Text>
+                <Text style={styles.label}>KONFIRMASI PASSWORD</Text>
                 <View
                   style={[
                     styles.inputWrapper,
@@ -253,7 +255,7 @@ export default function SignUp() {
                     style={styles.inputIcon}
                   />
                   <TextInput
-                    placeholder="Re-enter your password"
+                    placeholder="Masukkan ulang password"
                     placeholderTextColor="#9ca3af"
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
@@ -273,7 +275,9 @@ export default function SignUp() {
                     disabled={loading}
                   >
                     <Ionicons
-                      name={showConfirmPassword ? "eye-outline" : "eye-off-outline"}
+                      name={
+                        showConfirmPassword ? "eye-outline" : "eye-off-outline"
+                      }
                       size={22}
                       color="#9ca3af"
                     />
@@ -285,14 +289,14 @@ export default function SignUp() {
               <View style={styles.infoBox}>
                 <Ionicons name="information-circle" size={20} color="#2563eb" />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoTitle}>Password Requirements:</Text>
+                  <Text style={styles.infoTitle}>Persyaratan Password:</Text>
                   <View style={styles.infoItem}>
                     <View style={styles.bullet} />
-                    <Text style={styles.infoText}>At least 6 characters long</Text>
+                    <Text style={styles.infoText}>Minimal 6 karakter</Text>
                   </View>
                   <View style={styles.infoItem}>
                     <View style={styles.bullet} />
-                    <Text style={styles.infoText}>Passwords must match</Text>
+                    <Text style={styles.infoText}>Password harus sama</Text>
                   </View>
                 </View>
               </View>
@@ -313,7 +317,7 @@ export default function SignUp() {
                   {loading ? (
                     <ActivityIndicator size="small" color="#ffffff" />
                   ) : (
-                    <Text style={styles.buttonText}>Create Account</Text>
+                    <Text style={styles.buttonText}>Buat Akun</Text>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
@@ -321,29 +325,22 @@ export default function SignUp() {
               {/* Divider */}
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
+                <Text style={styles.dividerText}>ATAU</Text>
                 <View style={styles.dividerLine} />
               </View>
 
               {/* Sign In Link */}
               <View style={styles.footer}>
-                <Text style={styles.footerText}>Already have an account? </Text>
+                <Text style={styles.footerText}>Sudah punya akun? </Text>
                 <TouchableOpacity
                   onPress={() => router.replace("/(auth)/sign-in")}
                   disabled={loading}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.footerLink}>Sign In</Text>
+                  <Text style={styles.footerLink}>Masuk</Text>
                 </TouchableOpacity>
               </View>
             </View>
-
-            {/* Bottom Text */}
-            {/* <View style={styles.bottomTextContainer}>
-              <Text style={styles.bottomText}>
-                By signing up, you agree to our Terms & Privacy
-              </Text>
-            </View> */}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

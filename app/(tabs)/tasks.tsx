@@ -442,21 +442,11 @@ export default function TaskListScreen() {
         {/* Sort Dropdown */}
         <TouchableOpacity
           style={styles.sortButton}
-          onPress={() => {
-            Alert.alert("Urutkan", "Pilih urutan tampilan", [
-              {
-                text: "Tenggat Terdekat",
-                onPress: () => setSortBy("deadline"),
-                style: sortBy === "deadline" ? "default" : "cancel",
-              },
-              {
-                text: "Terbaru Dibuat",
-                onPress: () => setSortBy("created_at"),
-                style: sortBy === "created_at" ? "default" : "cancel",
-              },
-              { text: "Batal", style: "cancel" },
-            ]);
-          }}
+          onPress={() =>
+            setSortBy((prev) =>
+              prev === "deadline" ? "created_at" : "deadline"
+            )
+          }
         >
           <Ionicons name="swap-vertical" size={18} color="#007AFF" />
           <Text style={styles.sortButtonText}>
@@ -646,15 +636,15 @@ export default function TaskListScreen() {
                       </View>
                     )}
 
-                    {task.repeatEnabled && task.repeatOption !== "none" && (
+                    {task.repeatEnabled && task.repeatMode !== "none" && (
                       <View style={[styles.metaChip, styles.metaChipRepeat]}>
                         <Ionicons name="repeat" size={12} color="#F57C00" />
                         <Text style={styles.metaChipTextRepeat}>
-                          {task.repeatOption === "daily"
+                          {task.repeatMode === "daily"
                             ? "Harian"
-                            : task.repeatOption === "weekly"
+                            : task.repeatMode === "weekly"
                               ? "Mingguan"
-                              : task.repeatOption === "monthly"
+                              : task.repeatMode === "monthly"
                                 ? "Bulanan"
                                 : "Tahunan"}
                         </Text>
@@ -692,7 +682,7 @@ export default function TaskListScreen() {
                       />
                     </TouchableOpacity>
                   </View> */}
-              </View>
+                </View>
 
                 {/* {isCompleted && (
                   <View style={styles.completedOverlay}>
@@ -722,7 +712,7 @@ export default function TaskListScreen() {
 
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => setAddModalVisible(true)}
+        onPress={() => router.push("/tasks/create")}
         activeOpacity={0.8}
       >
         <Ionicons name="add" size={26} color="#FFFFFF" />

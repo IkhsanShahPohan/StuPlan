@@ -10,35 +10,6 @@ export default function InsertUsersScreen() {
   const sqlite = useSQLiteContext();
   const db = drizzle(sqlite);
 
-  const insertUsers = async () => {
-    try {
-      await db.insert(users).values([
-        {
-          id: "user-101",
-          email: "john@example.com",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: "user-102",
-          email: "sarah@example.com",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: "user-103",
-          email: "michael@example.com",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ]);
-
-      console.log("✅ Inserted sample users!");
-    } catch (err) {
-      console.error("❌ Insert error:", err);
-    }
-  };
-
   const loadTasks = async () => {
     try {
       const result = await db.select().from(tasks);
@@ -46,6 +17,15 @@ export default function InsertUsersScreen() {
       console.log("Tasks:", JSON.stringify(result, null, 2));
     } catch (error) {
       console.error("Select error:", error);
+    }
+  };
+
+  const delTask = async () => {
+    try {
+      await db.delete(tasks);
+      console.log("Success!");
+    } catch (error) {
+      console.log("Gagal");
     }
   };
 
@@ -61,8 +41,6 @@ export default function InsertUsersScreen() {
           updatedAt: new Date().toISOString(),
         })
         .where(eq(users.id, userId));
-
-      console.log("User fields cleared!");
     } catch (error) {
       console.error("Error clearing user fields:", error);
     }
@@ -102,7 +80,7 @@ export default function InsertUsersScreen() {
       content: {
         title: "Hei man, how is your day?",
         body: "Here is the notification body",
-        // vibrate:
+        sound: "tung.mp3",
         data: {
           data: "goes here",
           test: { test1: "more data" },
@@ -128,8 +106,19 @@ export default function InsertUsersScreen() {
     }
   }
 
+  async function cancelAll() {
+    try {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      console.log("Berhasil cancel!");
+    } catch (error) {}
+  }
+
   async function cancelAllNotifications() {
-    const arr = ["c613a295-3fbe-499a-b920-1897a9a1b545"];
+    const arr = [
+      "082ef028-af12-47e0-a3cb-e3c9652142fd",
+      "1dc02b2a-290a-418a-bdc3-ea237585856c",
+      "32f80555-1980-43bd-b4cc-812488416e4d",
+    ];
 
     for (const id of arr) {
       await scheduleAndCancel(id);
@@ -203,9 +192,23 @@ export default function InsertUsersScreen() {
         <TouchableOpacity
           style={styles.button}
           activeOpacity={0.7}
-          onPress={cancelAllNotifications}
+          onPress={cancelAll}
         >
           <Text style={styles.buttonText}>Cancel Notification</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          activeOpacity={0.7}
+          onPress={delTask}
+        >
+          <Text style={styles.buttonText}>Hapus Task!</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          activeOpacity={0.7}
+          onPress={() => router.push("")}
+        >
+          <Text style={styles.buttonText}>Hapus Task!</Text>
         </TouchableOpacity>
       </View>
     </View>

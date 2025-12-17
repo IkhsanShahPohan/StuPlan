@@ -85,10 +85,6 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleResetPassword = () => {
-    router.push("/(auth)/reset-password");
-  };
-
   const handleEditProfile = () => {
     router.push("/edit-profile");
   };
@@ -97,30 +93,11 @@ export default function ProfileScreen() {
     if (!dateString) return "Belum diisi";
 
     const date = new Date(dateString);
-
     const day = String(date.getDate()).padStart(2, "0");
-    const month = date.toLocaleString("id-ID", { month: "long" }); // November, Januari, dll
+    const month = date.toLocaleString("id-ID", { month: "long" });
     const year = date.getFullYear();
 
     return `${day} ${month} ${year}`;
-  };
-
-
-
-  const calculateAge = (birthDate: string | null) => {
-    if (!birthDate) return null;
-    const [day, month, year] = birthDate.split("/").map(Number);
-    const birth = new Date(year, month - 1, day);
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (
-      monthDiff < 0 ||
-      (monthDiff === 0 && today.getDate() < birth.getDate())
-    ) {
-      age--;
-    }
-    return age;
   };
 
   const getInitials = (name: string | null) => {
@@ -205,16 +182,11 @@ export default function ProfileScreen() {
             value={profile?.fullName || "Belum diisi"}
           />
 
-          {/* Birth Date & Age */}
+          {/* Birth Date */}
           <ProfileItem
             icon="🎂"
             label="Tanggal Lahir"
-            value={formatDate(profile?.birthDate || null)}
-            // badge={
-            //   profile?.birthDate
-            //     ? `${calculateAge(profile.birthDate)} tahun`
-            //     : undefined
-            // }
+            value={profile?.birthDate || "Belum diisi"}
           />
 
           {/* Education Level */}
@@ -234,7 +206,7 @@ export default function ProfileScreen() {
         </View>
       </Animated.View>
 
-      {/* Account Management Section */}
+      {/* Account Settings Section */}
       <Animated.View
         entering={FadeInRight.delay(200).duration(400)}
         className="px-6 pb-6"
@@ -246,7 +218,7 @@ export default function ProfileScreen() {
         <View className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4">
           {/* Edit Profile */}
           <ActionItem
-            icon="✏"
+            icon="✏️"
             label="Edit Profil"
             description="Perbarui informasi pribadi Anda"
             onPress={handleEditProfile}
@@ -260,6 +232,23 @@ export default function ProfileScreen() {
             onPress={() => router.push("/change-password")}
             isLast
           />
+        </View>
+
+        {/* Danger Zone */}
+        <View className="mb-4">
+          <Text className="text-sm font-semibold text-gray-500 mb-3 px-1">
+            CADANGKAN
+          </Text>
+
+          <View className="bg-white rounded-2xl shadow-sm border border-amber-200 overflow-hidden mb-3">
+            {/* Restore Data */}
+            <ActionItem
+              icon="☁️"
+              label="Cadangan & Sinkronisasi"
+              description="Kelola pencadangan data Anda"
+              onPress={() => router.push("/backup/settings")}
+            />
+          </View>
         </View>
 
         {/* Sign Out Button */}

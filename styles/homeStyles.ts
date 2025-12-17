@@ -28,7 +28,7 @@ export const styles = StyleSheet.create({
   // Header Section
   headerGradient: {
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 32,
+    paddingBottom: 24,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
@@ -122,16 +122,85 @@ export const styles = StyleSheet.create({
     paddingBottom: 20,
   },
 
-  // Stats Section
-  statsContainer: {
-    marginTop: -24,
+  // Section
+  section: {
     paddingHorizontal: 20,
+    marginTop: 20,
+  },
+
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
+    letterSpacing: 0.3,
+  },
+
+  seeAllText: {
+    fontSize: 14,
+    color: '#667eea',
+    fontWeight: '600',
+  },
+
+  // Quick Actions - Styling diperbaiki untuk 3 kolom
+  quickActionsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+
+  quickActionCard: {
+    flex: 1,
+    height: 110,
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginHorizontal: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+
+  quickActionGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+
+  quickActionText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+
+  // Stats Section - Muncul setelah Quick Actions
+  statsContainer: {
+    paddingHorizontal: 20,
+    marginTop: 20,
+    gap: 15,
     marginBottom: 8,
   },
 
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: CARD_GAP,
   },
 
@@ -141,6 +210,7 @@ export const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 18,
     alignItems: 'center',
+    marginBottom: 4,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -155,22 +225,22 @@ export const styles = StyleSheet.create({
   },
 
   statCardPrimary: {
-    borderLeftWidth: 3,
+    borderLeftWidth: 4,
     borderLeftColor: '#10B981',
   },
 
   statCardSecondary: {
-    borderLeftWidth: 3,
+    borderLeftWidth: 4,
     borderLeftColor: '#3B82F6',
   },
 
   statCardWarning: {
-    borderLeftWidth: 3,
+    borderLeftWidth: 4,
     borderLeftColor: '#F59E0B',
   },
 
   statCardSuccess: {
-    borderLeftWidth: 3,
+    borderLeftWidth: 4,
     borderLeftColor: '#8B5CF6',
   },
 
@@ -194,34 +264,8 @@ export const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     color: '#64748B',
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-
-  // Section
-  section: {
-    paddingHorizontal: 20,
-    marginTop: 24,
-  },
-
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1E293B',
-    letterSpacing: 0.3,
-  },
-
-  seeAllText: {
-    fontSize: 14,
-    color: '#667eea',
     fontWeight: '600',
+    textAlign: 'center',
   },
 
   // Progress Card
@@ -360,6 +404,19 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 40,
     paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
 
   emptyStateText: {
@@ -373,47 +430,6 @@ export const styles = StyleSheet.create({
   emptyStateSubtext: {
     fontSize: 14,
     color: '#94A3B8',
-    textAlign: 'center',
-  },
-
-  // Quick Actions
-  quickActionsGrid: {
-    flexDirection: 'row',
-    // flexWrap: 'wrap',
-    gap: CARD_GAP,
-    marginTop: 12,
-  },
-
-  quickActionCard: {
-    width: "31%",
-    height: 120,
-    borderRadius: 20,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-
-  quickActionGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-
-  quickActionText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 8,
     textAlign: 'center',
   },
 
